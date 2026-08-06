@@ -3,8 +3,8 @@ import os
 
 import aws_cdk as cdk
 
-from infra.infra.ingestion_stack import IngestionStack
-from infra.infra.config import ENVIRONMENTS
+from infra.ingestion_stack import IngestionStack
+from infra.config import ENVIRONMENTS
 
 
 app = cdk.App()
