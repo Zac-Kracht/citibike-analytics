@@ -5,6 +5,8 @@ from aws_cdk import (
     aws_s3 as s3,
     aws_dynamodb as dynamodb,
     aws_lambda as lambda_,
+    aws_iam as iam,
+    aws_logs as logs,
     aws_events as events,
     aws_events_targets as targets
 )
@@ -20,6 +22,12 @@ STORAGE_CLASS_MAP = {
 REMOVAL_POLICY_MAP = {
     "RETAIN": RemovalPolicy.RETAIN,
     "DESTROY": RemovalPolicy.DESTROY,
+}
+
+LOG_RETENTION_DAYS_MAP = {
+    "ONE_WEEK": logs.RetentionDays.ONE_WEEK,
+    "ONE_MONTH": logs.RetentionDays.ONE_MONTH,
+    "ONE_YEAR": logs.RetentionDays.ONE_YEAR
 }
 
 class IngestionStack(Stack):
@@ -61,7 +69,16 @@ class IngestionStack(Stack):
             versioned=False,
             removal_policy=REMOVAL_POLICY_MAP[config.removal_policy],
             auto_delete_objects=config.s3_auto_delete_objects, 
-            lifecycle_rules=bronze_lifecycle_rules
+            lifecycle_rules=bronze_lifecycle_rules,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            enforce_ssl=True
+        )
+
+        self.ingestion_lambda_log_group = logs.LogGroup(
+            self, f"{stack_prefix}IngestionLambdaLogGroup",
+            log_group_name=f"/aws/lambda/citibike-ingestion-lambda-{config.env_name}",
+            retention=LOG_RETENTION_DAYS_MAP[config.lambda_logs_retention_days],
+            removal_policy=REMOVAL_POLICY_MAP[config.removal_policy]
         )
 
         self.ingestion_lambda = lambda_.Function(
@@ -69,6 +86,7 @@ class IngestionStack(Stack):
             function_name=f"citibike-ingestion-lambda-{config.env_name}",
             runtime=lambda_.Runtime.PYTHON_3_11,
             handler="src.handler.lambda_handler",
+            log_group=self.ingestion_lambda_log_group,
             code=lambda_.Code.from_asset(
                 path="../lambda",
                 exclude=[
@@ -94,5 +112,52 @@ class IngestionStack(Stack):
         )
 
         self.bronze_bucket.grant_write(self.ingestion_lambda)
+
+        self.bronze_bucket.add_to_resource_policy(
+            iam.PolicyStatement(
+                sid="RestrictWriteToIngestionLambdaOnly",
+                effect=iam.Effect.DENY,
+                principals=[iam.AnyPrincipal()],
+                actions=["s3:PutObject", "s3:AbortMultipartUpload"],
+                resources=[f"{self.bronze_bucket.bucket_arn}/*"],
+                conditions={
+                    "StringNotLike": {
+                        "aws:PrincipalArn": [
+                            self.ingestion_lambda.role.role_arn,
+                            # Allow CloudFormation/CDK deployment role to manage objects if needed
+                            f"arn:aws:iam::{self.account}:role/cdk-*",
+                            f"arn:aws:iam::{self.account}:root", 
+                            f"arn:aws:iam::{self.account}:user/*",  
+                            f"arn:aws:iam::{self.account}:role/aws-reserved/*"
+                        ]
+                    }
+                }
+            )
+        )
+
+        # self.bronze_bucket.add_to_resource_policy(
+        #     iam.PolicyStatement(
+        #         sid="RestrictReadToGlueJobOnly",
+        #         effect=iam.Effect.DENY,
+        #         principals=[iam.AnyPrincipal()],
+        #         actions=["s3:GetObject", "s3:ListBucket"],
+        #         resources=[data_bucket.bucket_arn, f"{data_bucket.bucket_arn}/*"],
+        #         conditions={
+        #             "StringNotLike": {
+        #                 "aws:PrincipalArn": [
+        #                     glue_job_role.role_arn,
+        #                     f"arn:aws:iam::{self.account}:role/cdk-*"
+        #                 ]
+        #             }
+        #         }
+        #     )
+        # )
+
+        self.scheduled_lambda_rule = events.Rule(
+            self, f"{stack_prefix}ScheduledLambdaRule",
+            rule_name=f"citibike-scheduled-lambda-rules-{config.env_name}",
+            schedule=events.Schedule.rate(Duration.minutes(config.lambda_poll_rate_minutes))
+        )
+        self.scheduled_lambda_rule.add_target(targets.LambdaFunction(self.ingestion_lambda))
 
 

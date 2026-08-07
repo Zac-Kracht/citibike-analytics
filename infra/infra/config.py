@@ -20,6 +20,8 @@ class EnvironmentConfig:
     removal_policy: str
     s3_auto_delete_objects: bool
     s3_lifecycle_rules: List[LifecycleRuleConfig]
+    lambda_poll_rate_minutes: int
+    lambda_logs_retention_days: str
 
 ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
     "dev": EnvironmentConfig(
@@ -41,7 +43,9 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
                 id="DevAbortIncompleteUploads",
                 abort_incomplete_upload_after_days=1
             )
-        ]
+        ],
+        lambda_poll_rate_minutes=3, # TODO: increase once we verify its working
+        lambda_logs_retention_days="ONE_WEEK"
     ),
     "prod": EnvironmentConfig(
         env_name="prod",
@@ -77,6 +81,8 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
                 id="ProdAbortIncompleteUploads",
                 abort_incomplete_upload_after_days=7
             )
-        ]
+        ],
+        lambda_poll_rate_minutes=3,
+        lambda_logs_retention_days="ONE_MONTH"
     )
 }
