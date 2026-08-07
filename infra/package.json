@@ -1,0 +1,11 @@
+{
+    "name": "citibike-analytics-infra",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+      "cdk": "cdk"
+    },
+    "devDependencies": {
+      "aws-cdk": "^2"
+    }
+  }

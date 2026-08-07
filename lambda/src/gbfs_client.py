@@ -1,7 +1,8 @@
 import json
 import urllib.request
 import logging
-from typing import Final
+
+from typing import Final, Dict, Any
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -10,10 +11,11 @@ class GBFSClient:
     GBFS_KEY_STATION_STATUS: Final = "station_status"
     GBFS_KEY_STATION_INFORMATION: Final = "station_information"
 
-    def __init__(self, discovery_url: str, language_code: str = "en", owner_contact: str = ""):
+    def __init__(self, discovery_url: str, language_code: str = "en", owner_contact: str = "", env: str = "dev"):
         self.discovery_url = discovery_url
         self.language_code = language_code
         self.owner_contact = owner_contact
+        self.env = env
         self.feed_data = None
 
     def _make_gbfs_request(self, url: str):
@@ -21,7 +23,7 @@ class GBFSClient:
         req = urllib.request.Request(
             url,
             headers = {
-                "User-Agent": f"CitiBikeAnalytics-Ingestion-Lambda/1.0 ({self.owner_contact})"
+                "User-Agent": f"CitiBikeAnalytics-Ingestion-Lambda-{self.env}/1.0 ({self.owner_contact})"
             }
         )
 
@@ -52,7 +54,7 @@ class GBFSClient:
             self.feed_data = {}
             for feed in discovery_feeds:
                 self.feed_data[feed["name"]] = feed["url"]
-            logging.info("GBFS feed data initialized.")
+            logging.info("GBFS feed data initialized")
 
         if key in self.feed_data:
             return self.feed_data[key]
@@ -61,10 +63,10 @@ class GBFSClient:
             raise RuntimeError(f"Key {key} not found in GBFS feed data")
 
 
-    def fetch_station_info(self):
+    def fetch_station_info(self) -> Dict[str, Any]:
         url = self._get_gbfs_feed(self.GBFS_KEY_STATION_INFORMATION)
         return self._make_gbfs_request(url)
 
-    def fetch_station_status(self):
+    def fetch_station_status(self) -> Dict[str, Any]:
         url = self._get_gbfs_feed(self.GBFS_KEY_STATION_STATUS)
         return self._make_gbfs_request(url)

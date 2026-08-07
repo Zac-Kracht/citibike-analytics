@@ -33,6 +33,8 @@ class IngestionStack(Stack):
         ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        stack_prefix = "CitiBikeAnalytics"
+
         bronze_lifecycle_rules = []
         for rule_cfg in config.s3_lifecycle_rules:
             transitions = [
@@ -53,8 +55,7 @@ class IngestionStack(Stack):
             )
 
         self.bronze_bucket = s3.Bucket(
-            self,
-            "CitiBikeAnalyticsBronzeBucket",
+            self, f"{stack_prefix}BronzeBucket",
             bucket_name_prefix=f"citibike-data-lake-bronze-{config.env_name}",
             bucket_namespace=s3.BucketNamespace.ACCOUNT_REGIONAL,
             versioned=False,
@@ -62,5 +63,36 @@ class IngestionStack(Stack):
             auto_delete_objects=config.s3_auto_delete_objects, 
             lifecycle_rules=bronze_lifecycle_rules
         )
+
+        self.ingestion_lambda = lambda_.Function(
+            self, f"{stack_prefix}IngestionLambda",
+            function_name=f"citibike-ingestion-lambda-{config.env_name}",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="src.handler.lambda_handler",
+            code=lambda_.Code.from_asset(
+                path="../lambda",
+                exclude=[
+                    ".venv",
+                    ".pytest_cache",
+                    "venv",
+                    ".git",
+                    "__pycache__",
+                    "*.pyc",
+                    "node_modules"
+                ]
+            ),
+            timeout=Duration.seconds(30),
+            memory_size=256,
+            environment = {
+                "BRONZE_BUCKET_NAME": self.bronze_bucket.bucket_name,
+                "DYNAMODB_TABLE_NAME": "",
+                "GBFS_DISCOVERY_URL": "https://gbfs.citibikenyc.com/gbfs/2.3/gbfs.json",
+                "ENV_NAME": config.env_name,
+                "OWNER_CONTACT": "zac.kracht.dev@gmail.com",
+                "LANGUAGE_CODE": "en"
+            }
+        )
+
+        self.bronze_bucket.grant_write(self.ingestion_lambda)
 
 
