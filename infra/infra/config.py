@@ -15,74 +15,84 @@ class LifecycleRuleConfig:
     abort_incomplete_upload_after_days: Optional[int] = None
 
 @dataclass
+class S3Config:
+    auto_delete_objects: bool
+    lifecycle_rules: List[LifecycleRuleConfig]
+
+@dataclass
+class LambdaConfig:
+    poll_rate_minutes: int
+    logs_retention_days: str
+
+@dataclass
+class GlueConfig:
+    execution_class: str
+
+
+@dataclass
 class EnvironmentConfig:
     env_name: str
     removal_policy: str
-    s3_auto_delete_objects: bool
-    s3_lifecycle_rules: List[LifecycleRuleConfig]
-    lambda_poll_rate_minutes: int
-    lambda_logs_retention_days: str
+    s3_config: S3Config
+    lambda_config: LambdaConfig
+    glue_config: GlueConfig
+    
 
 ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
     "dev": EnvironmentConfig(
         env_name="dev",
         removal_policy="DESTROY",
-        s3_auto_delete_objects=True,
-        s3_lifecycle_rules=[
-            LifecycleRuleConfig(
-                id="DevExpireGBFSJson",
-                prefix="bronze/gbfs/",
-                expiration_days=7
-            ),
-            LifecycleRuleConfig(
-                id="DevExpireHistoricalCSV",
-                prefix="bronze/historical/",
-                expiration_days=30
-            ),
-            LifecycleRuleConfig(
-                id="DevAbortIncompleteUploads",
-                abort_incomplete_upload_after_days=1
-            )
-        ],
-        lambda_poll_rate_minutes=3, # TODO: increase once we verify its working
-        lambda_logs_retention_days="ONE_WEEK"
+        s3_config = S3Config(
+            auto_delete_objects=True,
+            lifecycle_rules=[
+                LifecycleRuleConfig(
+                    id="DevExpireGBFSJson",
+                    prefix="bronze/gbfs/",
+                    expiration_days=7
+                ),
+                LifecycleRuleConfig(
+                    id="DevAbortIncompleteUploads",
+                    abort_incomplete_upload_after_days=1
+                )
+            ]
+        ),
+        lambda_config=LambdaConfig(
+            poll_rate_minutes=10,
+            logs_retention_days="ONE_WEEK"
+        ),
+        glue_config=GlueConfig(
+            execution_class="FLEX"
+        )
     ),
     "prod": EnvironmentConfig(
         env_name="prod",
         removal_policy="RETAIN",
-        s3_auto_delete_objects=False,
-        s3_lifecycle_rules=[
-            LifecycleRuleConfig(
-                id="ProdIntelligentTieringGBFS",
-                prefix="bronze/gbfs/",
-                transitions=[
-                    TransitionConfig(
-                        storage_class="INTELLIGENT_TIERING",
-                        transition_after_days=30
-                    )
-                ],
-                expiration_days=180
-            ),
-            LifecycleRuleConfig(
-                id="ProdGlacierHistoricalCSV",
-                prefix="bronze/historical/",
-                transitions=[
-                    TransitionConfig(
-                        storage_class="INFREQUENT_ACCESS",
-                        transition_after_days=30
-                    ),
-                    TransitionConfig(
-                        storage_class="GLACIER",
-                        transition_after_days=90
-                    ),
-                ],
-            ),
-            LifecycleRuleConfig(
-                id="ProdAbortIncompleteUploads",
-                abort_incomplete_upload_after_days=7
-            )
-        ],
-        lambda_poll_rate_minutes=3,
-        lambda_logs_retention_days="ONE_MONTH"
+        s3_config=S3Config(
+            auto_delete_objects=False,
+            lifecycle_rules=[
+                LifecycleRuleConfig(
+                    id="ProdIntelligentTieringGBFS",
+                    prefix="bronze/gbfs/",
+                    transitions=[
+                        TransitionConfig(
+                            storage_class="INTELLIGENT_TIERING",
+                            transition_after_days=30
+                        )
+                    ],
+                    expiration_days=180
+                ),
+                LifecycleRuleConfig(
+                    id="ProdAbortIncompleteUploads",
+                    abort_incomplete_upload_after_days=7
+                )
+            ]
+        ),
+        lambda_config=LambdaConfig(
+            poll_rate_minutes=3,
+            logs_retention_days="ONE_MONTH"
+        ),
+        glue_config=GlueConfig(
+            execution_class="STANDARD"
+        )
     )
 }

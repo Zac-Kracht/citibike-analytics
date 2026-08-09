@@ -30,12 +30,12 @@ def lambda_handler(event, context):
     station_info_json = gbfs_client.fetch_station_info()
     logger.info("Retrieved GBFS data")
 
-    # Write updated station statuses to DynamoDB
+    # TODO: Write updated station statuses to DynamoDB
 
     # Write raw json files to S3
     s3_service = S3Service(
-        s3_client,
-        config.BRONZE_BUCKET_NAME
+        s3_client, 
+        config.DATA_LAKE_BUCKET_NAME
     )
     epoch_ts = int(now.timestamp())
     partition_str = now.strftime("year=%Y/month=%m/day=%d/hour=%H")
