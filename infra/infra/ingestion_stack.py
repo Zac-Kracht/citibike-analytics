@@ -139,14 +139,13 @@ class IngestionStack(Stack):
 
         ## Bronze -> Silver
 
-        self.bronze_job_script_asset = s3_assets.Asset(
-            self, f"{stack_prefix}BronzeToSilverScriptAsset",
-            path="../etl/bronze_to_silver.py"
+        self.gbfs_script_asset = s3_assets.Asset(
+            self, f"{stack_prefix}GBFSBronzeToSilverScriptAsset",
+            path="../etl//jobs/gbfs_bronze_to_silver.py"
         )
-
-        self.bronze_to_silver_glue_job = glue.CfnJob(
-            self, f"{stack_prefix}BronzeToSilverGlueJob",
-            name=f"citibike-etl-bronze-to-silver-{config.env_name}",
+        self.gbfs_glue_job = glue.CfnJob(
+            self, f"{stack_prefix}GBFSBronzeToSilverGlueJob",
+            name=f"citibike-etl-gbfs-bronze-to-silver-{config.env_name}",
             role=self.glue_role.role_arn,
             glue_version="4.0",
             worker_types="G.1X",
@@ -154,7 +153,33 @@ class IngestionStack(Stack):
             execution_class=config.glue_config.execution_class,
             command=glue.CfnJob.JobCommandProperty(
                 name="glueetl",
-                script_location=f"s3://{self.bronze_job_script_asset.s3_bucket_name}/{self.bronze_job_script_asset.s3_object_key}",
+                script_location=f"s3://{self.gbfs_script_asset.s3_bucket_name}/{self.gbfs_script_asset.s3_object_key}",
+                python_version="3"
+            ),
+            default_arguments={
+                "--job-bookmark-option": "job-bookmark-enable",
+                "--enable-metrics": "true",
+                "--enable-continuous-cloudwatch-log": "true",
+                "--DATA_LAKE_BUCKET": self.s3_bucket.bucket_name,
+                "--ENV_NAME": config.env_name
+            }
+        )
+
+        self.trips_script_asset = s3_assets.Asset(
+            self, f"{stack_prefix}TripsBronzeToSilverScriptAsset",
+            path="../etl//jobs/trips_bronze_to_silver.py"
+        )
+        self.trips_glue_job = glue.CfnJob(
+            self, f"{stack_prefix}TripsBronzeToSilverGlueJob",
+            name=f"citibike-etl-trips-bronze-to-silver-{config.env_name}",
+            role=self.glue_role.role_arn,
+            glue_version="4.0",
+            worker_types="G.1X",
+            number_of_workers=4,
+            execution_class=config.glue_config.execution_class,
+            command=glue.CfnJob.JobCommandProperty(
+                name="glueetl",
+                script_location=f"s3://{self.trips_script_asset.s3_bucket_name}/{self.trips_script_asset.s3_object_key}",
                 python_version="3"
             ),
             default_arguments={
@@ -201,7 +226,10 @@ class IngestionStack(Stack):
                     "StringNotLike": {
                         "aws:PrincipalArn": [
                             self.glue_role.role_arn,
-                            f"arn:aws:iam::{self.account}:role/cdk-*"
+                            f"arn:aws:iam::{self.account}:role/cdk-*",
+                            f"arn:aws:iam::{self.account}:root", 
+                            f"arn:aws:iam::{self.account}:user/*",  
+                            f"arn:aws:iam::{self.account}:role/aws-reserved/*"
                         ]
                     }
                 }
