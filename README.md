@@ -17,6 +17,7 @@ npx cdk destroy -c env=dev
 
 
 # TODO
+JC data?
 linter
 unit test
 integration test

@@ -141,7 +141,7 @@ class IngestionStack(Stack):
 
         self.gbfs_script_asset = s3_assets.Asset(
             self, f"{stack_prefix}GBFSBronzeToSilverScriptAsset",
-            path="../etl//jobs/gbfs_bronze_to_silver.py"
+            path="../etl/jobs/gbfs_bronze_to_silver.py"
         )
         self.gbfs_glue_job = glue.CfnJob(
             self, f"{stack_prefix}GBFSBronzeToSilverGlueJob",
@@ -161,13 +161,26 @@ class IngestionStack(Stack):
                 "--enable-metrics": "true",
                 "--enable-continuous-cloudwatch-log": "true",
                 "--DATA_LAKE_BUCKET": self.s3_bucket.bucket_name,
-                "--ENV_NAME": config.env_name
+                "--ENV_NAME": config.env_name,
+                "--DATA_TO_PROCESS": "ALL"
             }
+        )
+        self.gbfs_hourly_trigger = glue.CfnTrigger(
+            self, f"{stack_prefix}GBFSHourlyTrigger",
+            name=f"citibike-etl-gbfs-hourly-trigger-{config.env_name}",
+            type="SCHEDULED",
+            schedule="cron(5 * * * ? *)", # Every hour at 5 past the hour
+            start_on_creation=True,
+            actions=[
+                glue.CfnTrigger.ActionProperty(
+                    job_name=self.gbfs_glue_job.name
+                )
+            ]
         )
 
         self.trips_script_asset = s3_assets.Asset(
             self, f"{stack_prefix}TripsBronzeToSilverScriptAsset",
-            path="../etl//jobs/trips_bronze_to_silver.py"
+            path="../etl/jobs/trips_bronze_to_silver.py"
         )
         self.trips_glue_job = glue.CfnJob(
             self, f"{stack_prefix}TripsBronzeToSilverGlueJob",
@@ -189,6 +202,18 @@ class IngestionStack(Stack):
                 "--DATA_LAKE_BUCKET": self.s3_bucket.bucket_name,
                 "--ENV_NAME": config.env_name
             }
+        )
+        self.trips_monthly_trigger = glue.CfnTrigger(
+            self, f"{stack_prefix}TripsMonthlyTrigger",
+            name=f"citibike-etl-trips-monthly-trigger-{config.env_name}",
+            type="SCHEDULED",
+            schedule="cron(0 12 10 * ? *)", # Every month on the 10th at 12:00 UTC
+            start_on_creation=True,
+            actions=[
+                glue.CfnTrigger.ActionProperty(
+                    job_name=self.trips_glue_job.name
+                )
+            ]
         )
 
         # S3 Access
