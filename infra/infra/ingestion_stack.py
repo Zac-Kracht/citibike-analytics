@@ -119,12 +119,29 @@ class IngestionStack(Stack):
 
         self.s3_bucket.grant_write(self.ingestion_lambda)
 
-        self.scheduled_lambda_rule = events.Rule(
-            self, f"{stack_prefix}ScheduledLambdaRule",
-            rule_name=f"citibike-scheduled-lambda-rule-{config.env_name}",
-            schedule=events.Schedule.rate(Duration.minutes(config.lambda_config.poll_rate_minutes))
+        self.scheduled_lambda_status_rule = events.Rule(
+            self, f"{stack_prefix}ScheduledLambdaStatusRule",
+            rule_name=f"citibike-scheduled-lambda-status-rule-{config.env_name}",
+            schedule=events.Schedule.rate(Duration.minutes(config.lambda_config.status_poll_rate_minutes))
         )
-        self.scheduled_lambda_rule.add_target(targets.LambdaFunction(self.ingestion_lambda))
+        self.scheduled_lambda_status_rule.add_target(
+            targets.LambdaFunction(
+                self.ingestion_lambda,
+                event=events.RuleTargetInput.from_object({"poll_type": "status"})
+            )
+        )
+
+        self.scheduled_lambda_info_rule = events.Rule(
+            self, f"{stack_prefix}ScheduledLambdaInfoRule",
+            rule_name=f"citibike-scheduled-lambda-info-rule-{config.env_name}",
+            schedule=events.Schedule.cron(hour="12", minute="0")
+        )
+        self.scheduled_lambda_info_rule.add_target(
+            targets.LambdaFunction(
+                self.ingestion_lambda,
+                event=events.RuleTargetInput.from_object({"poll_type": "info"})
+            )
+        )
 
         # Glue Jobs
 
@@ -139,6 +156,8 @@ class IngestionStack(Stack):
 
         ## Bronze -> Silver
 
+        ### GBFS 
+
         self.gbfs_script_asset = s3_assets.Asset(
             self, f"{stack_prefix}GBFSBronzeToSilverScriptAsset",
             path="../etl/jobs/gbfs_bronze_to_silver.py"
@@ -150,6 +169,8 @@ class IngestionStack(Stack):
             glue_version="4.0",
             worker_types="G.1X",
             number_of_workers=2,
+            timeout=15,
+            max_retries=config.glue_config.max_retries,
             execution_class=config.glue_config.execution_class,
             command=glue.CfnJob.JobCommandProperty(
                 name="glueetl",
@@ -178,6 +199,8 @@ class IngestionStack(Stack):
             ]
         )
 
+        ### Trips
+
         self.trips_script_asset = s3_assets.Asset(
             self, f"{stack_prefix}TripsBronzeToSilverScriptAsset",
             path="../etl/jobs/trips_bronze_to_silver.py"
@@ -189,6 +212,8 @@ class IngestionStack(Stack):
             glue_version="4.0",
             worker_types="G.1X",
             number_of_workers=4,
+            timeout=15,
+            max_retries=config.glue_config.max_retries,
             execution_class=config.glue_config.execution_class,
             command=glue.CfnJob.JobCommandProperty(
                 name="glueetl",

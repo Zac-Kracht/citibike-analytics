@@ -21,12 +21,13 @@ class S3Config:
 
 @dataclass
 class LambdaConfig:
-    poll_rate_minutes: int
+    status_poll_rate_minutes: int
     logs_retention_days: str
 
 @dataclass
 class GlueConfig:
     execution_class: str
+    max_retries: int
 
 
 @dataclass
@@ -57,11 +58,12 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
             ]
         ),
         lambda_config=LambdaConfig(
-            poll_rate_minutes=10,
+            status_poll_rate_minutes=10,
             logs_retention_days="ONE_WEEK"
         ),
         glue_config=GlueConfig(
-            execution_class="FLEX"
+            execution_class="FLEX",
+            max_retries=0
         )
     ),
     "prod": EnvironmentConfig(
@@ -88,11 +90,12 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
             ]
         ),
         lambda_config=LambdaConfig(
-            poll_rate_minutes=3,
+            status_poll_rate_minutes=3,
             logs_retention_days="ONE_MONTH"
         ),
         glue_config=GlueConfig(
-            execution_class="STANDARD"
+            execution_class="STANDARD",
+            max_retries=2
         )
     )
 }

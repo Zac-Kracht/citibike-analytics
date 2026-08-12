@@ -36,14 +36,14 @@ hadoop_conf.set(
 
 DATA_LAKE_BUCKET = args["DATA_LAKE_BUCKET"]
 
-def get_optional_arg(arg_name: str, default_value=None):
+def _get_optional_arg(arg_name: str, default_value=None):
     """Retrieves an optional Glue argument if passed in sys.argv, otherwise returns default_value."""
     if f"--{arg_name}" in sys.argv:
         return getResolvedOptions(sys.argv, [arg_name])[arg_name]
     return default_value
 
 def resolve_file_date():
-    optional_month_to_process = get_optional_arg("MONTH_TO_PROCESS") # Optional arg for rerunning previous months
+    optional_month_to_process = _get_optional_arg("MONTH_TO_PROCESS") # Optional arg for rerunning previous months
 
     if optional_month_to_process is not None:
         run_date = datetime.strptime(optional_month_to_process, "%Y%m")
