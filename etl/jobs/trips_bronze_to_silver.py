@@ -10,11 +10,15 @@ from pyspark.sql.functions import (
     year, month
 )
 from pyspark.sql.types import DoubleType
-from datetime import datetime
 
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+if not logger.handlers:
+    handler = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
 args = getResolvedOptions(sys.argv, ["JOB_NAME", "DATA_LAKE_BUCKET", "ENV_NAME"])
 
@@ -27,14 +31,10 @@ job.init(args["JOB_NAME"], args)
 spark.conf.set("spark.sql.parquet.fs.optimized.committer.optimization-enabled", "true")
 spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
 
-# Enable Hadoop s3a for public S3 bucket access
-hadoop_conf = sc._jsc.hadoopConfiguration()
-hadoop_conf.set(
-    "fs.sa.aws.credentials.provider",
-    "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider"
-)
-
 DATA_LAKE_BUCKET = args["DATA_LAKE_BUCKET"]
+SILVER_TRIPS_S3_PATH = f"s3://{DATA_LAKE_BUCKET}/silver/trips/"
+GLUE_BOOKMARK_CTX = "trips_bronze_to_silver_ctx"
+
 
 def _get_optional_arg(arg_name: str, default_value=None):
     """Retrieves an optional Glue argument if passed in sys.argv, otherwise returns default_value."""
@@ -42,47 +42,35 @@ def _get_optional_arg(arg_name: str, default_value=None):
         return getResolvedOptions(sys.argv, [arg_name])[arg_name]
     return default_value
 
-def resolve_file_date():
-    optional_month_to_process = _get_optional_arg("MONTH_TO_PROCESS") # Optional arg for rerunning previous months
+def _get_data_source():
+    bronze_s3_path = _get_optional_arg("RERUN_PATH", f"s3://{DATA_LAKE_BUCKET}/bronze/trips/") # ex. bronze/trips/year=2026/month=08/
 
-    if optional_month_to_process is not None:
-        run_date = datetime.strptime(optional_month_to_process, "%Y%m")
-        file_year = run_date.year
-        file_month = run_date.month
-    else:
-        run_date = datetime.now()
-        file_year = run_date.year
-        file_month = run_date.month - 1
-        if file_month == 0:
-            file_year -= 1
-            file_month = 12
+    return glueContext.create_dynamic_frame.from_options(
+        connection_type="s3",
+        connection_options={
+            "paths": [bronze_s3_path],
+            "recurse": True
+        },
+        format="csv",
+        format_options={"withHeader": True},
+        transformation_ctx=GLUE_BOOKMARK_CTX
+    )
 
-    file_year_str = f"{file_year}"
-    file_month_str = f"0{file_month}" if file_month < 10 else f"{file_month}"
+def process_monthly_trips():
+    trips_df = _get_data_source().toDF()
 
-    return file_year_str, file_month_str
-
-def process_raw_data(s3_path: str, region_name: str):
-    logger.info(f"Attempting to extract data from: {s3_path}")
-
-    try:
-        df = (
-            spark.read.option("header", "true")
-            .option("inferSchema", "false")
-            .csv(s3_path)
-        )
-    except Exception as e:
-        logger.warn(f"Failed to extract data from file {s3_path}. Details: {e}")
-        return None
+    if trips_df.rdd.isEmpty():
+        logger.error("No new trips files to process")
+        raise RuntimeError("No new bronze trips files to process.")
 
     # Remove nulls from non-nullable fields
-    df = df.dropna(
+    trips_df = trips_df.dropna(
         subset=["ride_id", "started_at", "ended_at", "start_station_id", "end_station_id", "start_lat", "start_lng", "end_lat", "end_lng"]
     )
 
     # Convert to correct datatypes
-    df = (
-        df.withColumn("started_at", to_timestamp("started_at"))
+    trips_df = (
+        trips_df.withColumn("started_at", to_timestamp("started_at"))
         .withColumn("ended_at", to_timestamp("ended_at"))
         .withColumn("start_lat", col("start_lat").cast(DoubleType()))
         .withColumn("start_lng", col("start_lng").cast(DoubleType()))
@@ -92,19 +80,19 @@ def process_raw_data(s3_path: str, region_name: str):
     )
 
     # Filter invalid trip durations
-    df = df.filter(
+    trips_df = trips_df.filter(
         (col("duration_seconds") >= 60)
         & (col("duration_seconds") <= 86400)
     )
 
     # Partition cols
-    df = (
-        df.withColumn("year", year("started_at"))
+    trips_df = (
+        trips_df.withColumn("year", year("started_at"))
         .withColumn("month", month("started_at"))
     )
 
     # Final columns
-    df = df.select(
+    trips_df = trips_df.select(
         "ride_id",
         "rideable_type",
         "started_at",
@@ -123,60 +111,14 @@ def process_raw_data(s3_path: str, region_name: str):
         "month"
     )
 
-    return df
+    trips_df.cache()
+    count = trips_df.count()
+    logger.info(f"Writing {count} rows for trips to {SILVER_TRIPS_S3_PATH}")
+    trips_df.show(n=10, truncate=False)
+    logger.info(f"Writing silver parquet to: {SILVER_TRIPS_S3_PATH}")
 
-
-def process_monthly_trips():
-    SILVER_TRIPS_S3_PATH = f"s3://{DATA_LAKE_BUCKET}/silver/trips/"
-
-    file_year, file_month = resolve_file_date()
-    file_key = f"{file_year}{file_month}"
-
-    logger.info(f"Processing YYYYMM = {file_key}")
-
-    # Conflicting filenames for NYC vs JC
-    nyc_paths = [
-        f"s3a://tripdata/{file_key}-citibike-tripdata.zip",
-        f"s3a://tripdata/{file_key}-citibike-tripdata.csv.zip"
-    ]
-    jc_paths = [
-        f"s3a://tripdata/JC-{file_key}-citibike-tripdata.csv.zip",
-        f"s3a://tripdata/JC-{file_key}-citibike-tripdata.zip"
-    ]
-
-    nyc_df = None
-    for path in nyc_paths:
-        nyc_df = process_raw_data(path)
-        if nyc_df is not None:
-            break
-
-    jc_df = None
-    for path in jc_paths:
-        jc_df = process_raw_data(path)
-        if jc_df is not None:
-            break
-
-    if nyc_df is not None and jc_df is not None:
-        logger.info("Unioning NYC and JC trip data...")
-        combined_df = nyc_df.unionByName(jc_df, allowMissingColumns=True)
-    elif nyc_df is not None:
-        logger.info("Only found NYC file")
-        combined_df = nyc_df
-    elif jc_df is not None:
-        logger.info("Only found JC file")
-        combined_df = jc_df
-    else:
-        logger.error("Failed to find both files")
-        raise RuntimeError(f"Failed to load both NYC and JC files for YYYYMM: {file_key}")
-
-    logger.info(f"Writing combined silver parquet to: {SILVER_TRIPS_S3_PATH}")
-
-    (
-        combined_df.repartition("year", "month")
-        .write.mode("overwrite")
-        .partitionBy("year", "month")
-        .parquet(SILVER_TRIPS_S3_PATH)
-    )
+    trips_df.write.mode("append").partitionBy("year", "month").parquet(SILVER_TRIPS_S3_PATH)
+    logger.info("Successfully wrote trips data to S3.")
 
 
 def main():

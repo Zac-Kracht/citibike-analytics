@@ -75,7 +75,8 @@ class IngestionStack(Stack):
             auto_delete_objects=config.s3_config.auto_delete_objects, 
             lifecycle_rules=s3_lifecycle_rules,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            enforce_ssl=True
+            enforce_ssl=True,
+            event_bridge_enabled=True
         )
 
         # Ingestion Lambda
@@ -105,8 +106,8 @@ class IngestionStack(Stack):
                     "node_modules"
                 ]
             ),
-            timeout=Duration.seconds(30),
-            memory_size=256,
+            timeout=Duration.seconds(120),
+            memory_size=2048,
             environment = {
                 "DATA_LAKE_BUCKET_NAME": self.s3_bucket.bucket_name,
                 "DYNAMODB_TABLE_NAME": "",
@@ -118,6 +119,8 @@ class IngestionStack(Stack):
         )
 
         self.s3_bucket.grant_write(self.ingestion_lambda)
+
+        ## Lambda triggers
 
         self.scheduled_lambda_status_rule = events.Rule(
             self, f"{stack_prefix}ScheduledLambdaStatusRule",
@@ -143,6 +146,18 @@ class IngestionStack(Stack):
             )
         )
 
+        self.scheduled_lambda_trips_rule = events.Rule(
+            self, f"{stack_prefix}ScheduledLambdaTripsRule",
+            rule_name=f"citibike-scheduled-lambda-trips-rule-{config.env_name}",
+            schedule=events.Schedule.cron(day="15", hour="02", minute="0")
+        )
+        self.scheduled_lambda_trips_rule.add_target(
+            targets.LambdaFunction(
+                self.ingestion_lambda,
+                event=events.RuleTargetInput.from_object({"poll_type": "trips"})
+            )
+        )
+
         # Glue Jobs
 
         self.glue_role = iam.Role(
@@ -162,12 +177,14 @@ class IngestionStack(Stack):
             self, f"{stack_prefix}GBFSBronzeToSilverScriptAsset",
             path="../etl/jobs/gbfs_bronze_to_silver.py"
         )
+        self.gbfs_script_asset.grant_read(self.glue_role)
+
         self.gbfs_glue_job = glue.CfnJob(
             self, f"{stack_prefix}GBFSBronzeToSilverGlueJob",
             name=f"citibike-etl-gbfs-bronze-to-silver-{config.env_name}",
             role=self.glue_role.role_arn,
             glue_version="4.0",
-            worker_types="G.1X",
+            worker_type="G.1X",
             number_of_workers=2,
             timeout=15,
             max_retries=config.glue_config.max_retries,
@@ -186,6 +203,7 @@ class IngestionStack(Stack):
                 "--DATA_TO_PROCESS": "ALL"
             }
         )
+
         self.gbfs_hourly_trigger = glue.CfnTrigger(
             self, f"{stack_prefix}GBFSHourlyTrigger",
             name=f"citibike-etl-gbfs-hourly-trigger-{config.env_name}",
@@ -205,12 +223,14 @@ class IngestionStack(Stack):
             self, f"{stack_prefix}TripsBronzeToSilverScriptAsset",
             path="../etl/jobs/trips_bronze_to_silver.py"
         )
+        self.trips_script_asset.grant_read(self.glue_role)
+
         self.trips_glue_job = glue.CfnJob(
             self, f"{stack_prefix}TripsBronzeToSilverGlueJob",
             name=f"citibike-etl-trips-bronze-to-silver-{config.env_name}",
             role=self.glue_role.role_arn,
             glue_version="4.0",
-            worker_types="G.1X",
+            worker_type="G.1X",
             number_of_workers=4,
             timeout=15,
             max_retries=config.glue_config.max_retries,
@@ -228,17 +248,28 @@ class IngestionStack(Stack):
                 "--ENV_NAME": config.env_name
             }
         )
-        self.trips_monthly_trigger = glue.CfnTrigger(
-            self, f"{stack_prefix}TripsMonthlyTrigger",
-            name=f"citibike-etl-trips-monthly-trigger-{config.env_name}",
-            type="SCHEDULED",
-            schedule="cron(0 12 10 * ? *)", # Every month on the 10th at 12:00 UTC
-            start_on_creation=True,
-            actions=[
-                glue.CfnTrigger.ActionProperty(
-                    job_name=self.trips_glue_job.name
-                )
-            ]
+
+        self.bronze_trips_event_rule = events.Rule(
+            self, f"{stack_prefix}BronzeTripsEventRule",
+            event_pattern=events.EventPattern(
+                source=["aws.s3"],
+                detail_type=["Object Created"],
+                detail={
+                    "bucket": {"name": [self.s3_bucket.bucket_name]},
+                    "object": {
+                        "key": [
+                            {"wildcard": "bronze/trips/*_SUCCESS"}
+                        ]
+                    }
+                }
+            )
+        )
+        self.bronze_trips_event_rule.add_target(
+            targets.AwsApi(
+                service="Glue",
+                action="startJobRun",
+                parameters={"JobName": self.trips_glue_job.name}
+            )
         )
 
         # S3 Access
@@ -270,8 +301,29 @@ class IngestionStack(Stack):
                 sid="RestrictReadAccess",
                 effect=iam.Effect.DENY,
                 principals=[iam.AnyPrincipal()],
-                actions=["s3:GetObject", "s3:ListBucket"],
+                actions=["s3:GetObject"],
                 resources=[f"{self.s3_bucket.bucket_arn}/*"],
+                conditions={
+                    "StringNotLike": {
+                        "aws:PrincipalArn": [
+                            self.glue_role.role_arn,
+                            f"arn:aws:iam::{self.account}:role/cdk-*",
+                            f"arn:aws:iam::{self.account}:root", 
+                            f"arn:aws:iam::{self.account}:user/*",  
+                            f"arn:aws:iam::{self.account}:role/aws-reserved/*"
+                        ]
+                    }
+                }
+            )
+        )
+
+        self.s3_bucket.add_to_resource_policy(
+            iam.PolicyStatement(
+                sid="RestrictReadAccess",
+                effect=iam.Effect.DENY,
+                principals=[iam.AnyPrincipal()],
+                actions=["s3:ListBucket"],
+                resources=[self.s3_bucket.bucket_arn],
                 conditions={
                     "StringNotLike": {
                         "aws:PrincipalArn": [
