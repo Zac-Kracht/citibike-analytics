@@ -11,11 +11,10 @@ class GBFSClient:
     GBFS_KEY_STATION_STATUS: Final = "station_status"
     GBFS_KEY_STATION_INFORMATION: Final = "station_information"
 
-    def __init__(self, discovery_url: str, language_code: str = "en", owner_contact: str = "", env: str = "dev"):
+    def __init__(self, discovery_url: str, user_agent: str, language_code: str = "en"):
         self.discovery_url = discovery_url
         self.language_code = language_code
-        self.owner_contact = owner_contact
-        self.env = env
+        self.user_agent = user_agent
         self.feed_data = None
 
     def _make_gbfs_request(self, url: str):
@@ -23,7 +22,7 @@ class GBFSClient:
         req = urllib.request.Request(
             url,
             headers = {
-                "User-Agent": f"CitiBikeAnalytics-Ingestion-Lambda-{self.env}/1.0 ({self.owner_contact})"
+                "User-Agent": self.user_agent
             }
         )
 

@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "citibike-analytics-etl-pipeline"
+version = "0.1.0"
+description = "PySpark Glue transformations for Citi Bike Analytics data lake"
+authors = ["Zac Kracht <zac.kracht.dev@gmail.com>"]
+packages = [{ include = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pyspark = "3.3.0"
+h3 = "^3.7.6"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+chispa = "^0.10.0"
+boto3 = "^1.26.0"
+ruff = "^0.2.0"
+
+[build-system]
+requires = ["poetry-core>=1.2.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-v --tb=short"
+testpaths = ["tests"]

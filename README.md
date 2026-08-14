@@ -17,9 +17,14 @@ npx cdk destroy -c env=dev
 
 
 # TODO
+Make sure S3 lifecycle rules minimize cost
 linter
 unit test
 integration test
 prod stack
 github actions/CICD
 claude file?
+documentations/readme's
+alerts about failed jobs
+alarms
+check for cyber threats
