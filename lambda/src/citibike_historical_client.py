@@ -43,3 +43,4 @@ class CitiBikeHistoricalClient:
         except Exception as e:
             logger.info("CSV file extraction to S3 failed")
             return 0
+            

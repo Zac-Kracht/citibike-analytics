@@ -79,6 +79,22 @@ class IngestionStack(Stack):
             event_bridge_enabled=True
         )
 
+        # DynamoDB
+
+        self.live_station_status_table = dynamodb.Table(
+            self, f"{stack_prefix}StationStatusDynamoTable",
+            table_name=f"citibike-live-station-status-{config.env_name}",
+            partition_key=dynamodb.Attribute(
+                name="station_id",
+                type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=REMOVAL_POLICY_MAP[config.removal_policy],
+            encryption=dynamodb.TableEncryption.AWS_MANAGED,
+            point_in_time_recovery=config.dynamo_config.point_in_time_recovery,
+            deletion_protection=config.dynamo_config.deletion_protection
+        )
+
         # Ingestion Lambda
 
         self.ingestion_lambda_log_group = logs.LogGroup(
@@ -110,7 +126,7 @@ class IngestionStack(Stack):
             memory_size=2048,
             environment = {
                 "DATA_LAKE_BUCKET_NAME": self.s3_bucket.bucket_name,
-                "DYNAMODB_TABLE_NAME": "",
+                "DYNAMODB_TABLE_NAME": self.live_station_status_table.table_name,
                 "GBFS_DISCOVERY_URL": "https://gbfs.citibikenyc.com/gbfs/2.3/gbfs.json",
                 "ENV_NAME": config.env_name,
                 "OWNER_CONTACT": "zac.kracht.dev@gmail.com",
@@ -119,6 +135,7 @@ class IngestionStack(Stack):
         )
 
         self.s3_bucket.grant_write(self.ingestion_lambda)
+        self.live_station_status_table.grant_write_data(self.ingestion_lambda)
 
         ## Lambda triggers
 
@@ -149,7 +166,7 @@ class IngestionStack(Stack):
         self.scheduled_lambda_trips_rule = events.Rule(
             self, f"{stack_prefix}ScheduledLambdaTripsRule",
             rule_name=f"citibike-scheduled-lambda-trips-rule-{config.env_name}",
-            schedule=events.Schedule.cron(day="15", hour="02", minute="0")
+            schedule=events.Schedule.cron(day="15", hour="6", minute="0")
         )
         self.scheduled_lambda_trips_rule.add_target(
             targets.LambdaFunction(

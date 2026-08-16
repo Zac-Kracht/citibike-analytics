@@ -7,12 +7,14 @@ from datetime import datetime, timezone, timedelta
 from src.config import Config
 from src.gbfs_client import GBFSClient
 from src.s3_service import S3Service
+from src.dynamo_service import DynamoDBService
 from src.citibike_historical_client import CitiBikeHistoricalClient
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 s3_client = boto3.client("s3")
+dynamodb_client = boto3.resource("dynamodb")
 
 
 def _handle_station_status(config: Config, event: dict):
@@ -23,12 +25,25 @@ def _handle_station_status(config: Config, event: dict):
         config.USER_AGENT,
         language_code=config.LANGUAGE_CODE
     )
-
     station_status_json = gbfs_client.fetch_station_status()
-    station_status_payload_size = len(station_status_json.get("data", {}).get("stations", []))
+    stations = station_status_json.get("data", {}).get("stations", [])
+    station_status_payload_size = len(stations)
+    
+    if station_status_payload_size == 0:
+        logger.info("No stations to process")
+        return {
+            "payload_size": station_status_payload_size
+        }
 
     now = datetime.now(timezone.utc)
     epoch_ts = int(now.timestamp())
+
+    dynamo_service = DynamoDBService(
+        dynamodb_client,
+        config.DYNAMODB_TABLE_NAME
+    )
+    dynamo_service.update_station_status(stations, epoch_ts)
+
     partition_str = now.strftime("year=%Y/month=%m/day=%d/hour=%H")
     station_status_s3_key = f"bronze/gbfs/station_status/{partition_str}/status_file_{epoch_ts}.json"
 
@@ -36,10 +51,7 @@ def _handle_station_status(config: Config, event: dict):
         s3_client, 
         config.DATA_LAKE_BUCKET_NAME
     )
-
     s3_service.write_json_file(station_status_json, station_status_s3_key)
-
-    # TODO: Write updated station data to DynamoDB  
 
     return {
         "s3_key": station_status_s3_key,
@@ -55,12 +67,25 @@ def _handle_station_info(config: Config, event: dict):
         config.USER_AGENT,
         language_code=config.LANGUAGE_CODE,
     )
-
     station_info_json = gbfs_client.fetch_station_info()
-    station_info_payload_size = len(station_info_json.get("data", {}).get("stations", []))
+    stations = station_info_json.get("data", {}).get("stations", [])
+    station_info_payload_size = len(stations)
+
+    if station_info_payload_size == 0:
+        logger.info("No stations to process")
+        return {
+            "payload_size": station_info_payload_size
+        }
 
     now = datetime.now(timezone.utc)
     epoch_ts = int(now.timestamp())
+
+    dynamo_service = DynamoDBService(
+        dynamodb_client,
+        config.DYNAMODB_TABLE_NAME
+    )
+    dynamo_service.update_station_info(stations, epoch_ts)
+
     partition_str = now.strftime("year=%Y/month=%m/day=%d")
     station_info_s3_key = f"bronze/gbfs/station_info/{partition_str}/info_file_{epoch_ts}.json"
 
@@ -68,10 +93,7 @@ def _handle_station_info(config: Config, event: dict):
         s3_client, 
         config.DATA_LAKE_BUCKET_NAME
     )
-
     s3_service.write_json_file(station_info_json, station_info_s3_key)
-
-    # TODO: Write updated station data to DynamoDB  
 
     return {
         "s3_key": station_info_s3_key,
