@@ -67,15 +67,18 @@ class DynamoDBService():
                             short_name = :short_name,
                             latitude = :lat,
                             longitude = :lon,
-                            capacity = :cap,
+                            #capacity = :capacity,
                             info_last_updated = :updated_at
                     """,
+                    ExpressionAttributeNames={
+                        "#capacity": "capacity"  # 'capacity' is a reserved keyword in DynamoDB
+                    },
                     ExpressionAttributeValues={
                         ":station_name": station.get("name", ""),
                         ":short_name": station.get("short_name", ""),
                         ":lat": str(station.get("lat", "")),
                         ":lon": str(station.get("lon", "")),
-                        ":cap": station.get("capacity", 0),
+                        ":capacity": station.get("capacity", 0),
                         ":updated_at": updated_at_ts
                     }
                 )
