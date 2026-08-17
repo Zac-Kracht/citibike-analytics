@@ -3,7 +3,7 @@ import os
 
 import aws_cdk as cdk
 
-from infra.ingestion_stack import IngestionStack
+from infra.data_pipeline_stack import DataPipelineStack
 from infra.config import ENVIRONMENTS
 
 
@@ -21,9 +21,9 @@ cdk_env = cdk.Environment(
     region=os.getenv('CDK_DEFAULT_REGION')
 )
 
-IngestionStack(
+DataPipelineStack(
     app, 
-    f"CitiBike-Analytics-IngestionStack-{config.env_name}",
+    f"CitiBike-DataPipeline-{config.env_name}",
     config,
     env=cdk_env
 )
