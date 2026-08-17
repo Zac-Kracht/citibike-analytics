@@ -152,6 +152,20 @@ class IngestionStack(Stack):
             )
         )
 
+        ## Lambda triggers
+
+        self.scheduled_lambda_status_rule = events.Rule(
+            self, f"{stack_prefix}ScheduledLambdaStatusRule",
+            rule_name=f"citibike-scheduled-lambda-status-rule-{config.env_name}",
+            schedule=events.Schedule.rate(Duration.minutes(config.lambda_config.status_poll_rate_minutes))
+        )
+        self.scheduled_lambda_status_rule.add_target(
+            targets.LambdaFunction(
+                self.ingestion_lambda,
+                event=events.RuleTargetInput.from_object({"poll_type": "status"})
+            )
+        )
+
         self.scheduled_lambda_info_rule = events.Rule(
             self, f"{stack_prefix}ScheduledLambdaInfoRule",
             rule_name=f"citibike-scheduled-lambda-info-rule-{config.env_name}",

@@ -25,6 +25,7 @@ def _handle_station_status(config: Config, event: dict):
         config.USER_AGENT,
         language_code=config.LANGUAGE_CODE
     )
+
     station_status_json = gbfs_client.fetch_station_status()
     stations = station_status_json.get("data", {}).get("stations", [])
     station_status_payload_size = len(stations)
