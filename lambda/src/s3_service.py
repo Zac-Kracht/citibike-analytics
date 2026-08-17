@@ -54,3 +54,4 @@ class S3Service:
         except ClientError as e:
             logger.error(f"Failed to write _SUCCESS file to S3 key {s3_key}: {e}")
             raise e
+            
