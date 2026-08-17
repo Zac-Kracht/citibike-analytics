@@ -52,9 +52,14 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
             auto_delete_objects=True,
             lifecycle_rules=[
                 LifecycleRuleConfig(
-                    id="DevExpireGBFSJson",
-                    prefix="bronze/gbfs/",
+                    id="DevBronzeData",
+                    prefix="bronze/",
                     expiration_days=7
+                ),
+                LifecycleRuleConfig(
+                    id="DevSilverData",
+                    prefix="silver/",
+                    expiration_days=14
                 ),
                 LifecycleRuleConfig(
                     id="DevAbortIncompleteUploads",
@@ -82,7 +87,7 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
             auto_delete_objects=False,
             lifecycle_rules=[
                 LifecycleRuleConfig(
-                    id="ProdIntelligentTieringGBFS",
+                    id="ProdBronzeGBFS",
                     prefix="bronze/gbfs/",
                     transitions=[
                         TransitionConfig(
@@ -93,9 +98,34 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
                     expiration_days=180
                 ),
                 LifecycleRuleConfig(
+                    id="ProdBronzeTrips",
+                    prefix="bronze/trips/",
+                    transitions=[
+                        TransitionConfig(
+                            storage_class="INFREQUENT_ACCESS",
+                            transition_after_days=30
+                        ),
+                        TransitionConfig(
+                            storage_class="GLACIER",
+                            transition_after_days=90
+                        )
+                    ]
+                ),
+                LifecycleRuleConfig(
+                    id="ProdSilverData",
+                    prefix="silver/",
+                    transitions=[
+                        TransitionConfig(
+                            storage_class="GLACIER_INSTANT_RETRIEVAL",
+                            transition_after_days=30
+                        )
+                    ],
+                    expiration_days=365
+                ),
+                LifecycleRuleConfig(
                     id="ProdAbortIncompleteUploads",
                     abort_incomplete_upload_after_days=7
-                )
+                ),
             ]
         ),
         lambda_config=LambdaConfig(
