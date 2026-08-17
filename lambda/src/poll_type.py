@@ -5,3 +5,4 @@ class PollType(str, Enum):
     STATUS = "STATUS"
     INFO = "INFO"
     TRIPS = "TRIPS"
+    
