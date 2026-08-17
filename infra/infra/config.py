@@ -50,7 +50,7 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
                     id="DevExpireGBFSJson",
                     prefix="bronze/gbfs/",
                     expiration_days=7
-                ),
+                )
                 LifecycleRuleConfig(
                     id="DevAbortIncompleteUploads",
                     abort_incomplete_upload_after_days=1

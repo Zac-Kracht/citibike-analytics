@@ -17,6 +17,7 @@ npx cdk destroy -c env=dev
 
 
 # TODO
+dynamoV2 migration
 Make sure S3 lifecycle rules minimize cost
 linter
 unit test
