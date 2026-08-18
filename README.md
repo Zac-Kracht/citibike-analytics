@@ -16,6 +16,10 @@ export DEV_ALLOWED_CIDR=$(curl -s https://checkip.amazonaws.com)/32
 npx cdk deploy -c env=dev
 npx cdk destroy -c env=dev
 
+./mvnw clean compile
+docker run -d -p 8000:8000 amazon/dynamodb-local
+./mvnw spring-boot:run
+
 
 # TODO
 dynamoV2 migration
@@ -32,3 +36,6 @@ code comments
 alerts about failed jobs
 alarms
 check for cyber threats
+vulnerability management
+makefiles
+multi language support
