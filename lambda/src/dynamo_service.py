@@ -76,8 +76,8 @@ class DynamoDBService():
                     ExpressionAttributeValues={
                         ":station_name": station.get("name", ""),
                         ":short_name": station.get("short_name", ""),
-                        ":lat": str(station.get("lat", "")),
-                        ":lon": str(station.get("lon", "")),
+                        ":lat": self._to_float(station.get("lat")),
+                        ":lon": self._to_float(station.get("lon")),
                         ":capacity": station.get("capacity", 0),
                         ":updated_at": updated_at_ts
                     }
@@ -91,5 +91,11 @@ class DynamoDBService():
 
         logger.info(f"Successfully updated info for {len(stations)-error_count}/{len(stations)} stations in DynamoDB. Error count: {error_count}")
         return error_count
+
+    def _to_float(val):
+        try:
+            return float(val) if val is not None else None
+        except (ValueError, TypeError):
+            return None
 
 

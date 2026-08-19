@@ -39,3 +39,5 @@ check for cyber threats
 vulnerability management
 makefiles
 multi language support
+Show users where they can return bike if station is full
+Show users where that can get a bike if station is full

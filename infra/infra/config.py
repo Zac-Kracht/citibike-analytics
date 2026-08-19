@@ -50,6 +50,7 @@ class APIConfig:
     allowed_cidrs: List[str] 
     secret_header_name: str
     secret_name: str
+    dynamo_poll_rate_ms: int
 
 @dataclass
 class EnvironmentConfig:
@@ -110,7 +111,8 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
             use_fargate_spot=True,
             allowed_cidrs=[os.getenv("DEV_ALLOWED_CIDR", "")],
             secret_header_name="",
-            secret_name=""
+            secret_name="",
+            dynamo_poll_rate_ms=1800000
         )
     ),
     "prod": EnvironmentConfig(
@@ -184,7 +186,8 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
             use_fargate_spot=False,
             allowed_cidrs=["0.0.0.0/0"],
             secret_header_name="X-Origin-Verify",
-            secret_name="citibike/prod/origin-header-secret"
+            secret_name="citibike/prod/origin-header-secret",
+            dynamo_poll_rate_ms=180000
         )
     )
 }

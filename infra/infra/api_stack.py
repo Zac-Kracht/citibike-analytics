@@ -66,7 +66,8 @@ class APIStack(Stack):
                 environment={
                     "SPRING_PROFILES_ACTIVE": config.env_name,
                     "DYNAMODB_TABLE_NAME": live_station_table.table_name,
-                    "AWS_REGION": self.region
+                    "AWS_REGION": self.region,
+                    "DYNAMO_TABLE_POLL_RATE": config.api_config.dynamo_poll_rate_ms
                 }
             )
         )
