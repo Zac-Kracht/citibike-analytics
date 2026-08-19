@@ -17,8 +17,48 @@ npx cdk deploy -c env=dev
 npx cdk destroy -c env=dev
 
 ./mvnw clean compile
-docker run -d -p 8000:8000 amazon/dynamodb-local
 ./mvnw spring-boot:run
+
+docker rm -f dynamodb-local
+
+docker run -d \
+  --name dynamodb-local \
+  -p 8000:8000 \
+  amazon/dynamodb-local \
+  -jar DynamoDBLocal.jar -inMemory -sharedDb
+
+aws dynamodb create-table \
+    --table-name citibike-station-status-local \
+    --attribute-definitions AttributeName=station_id,AttributeType=S \
+    --key-schema AttributeName=station_id,KeyType=HASH \
+    --billing-mode PAY_PER_REQUEST \
+    --endpoint-url http://localhost:8000 \
+    --region us-east-1
+
+aws dynamodb list-tables \
+    --endpoint-url http://localhost:8000 \
+    --region us-east-1
+
+aws dynamodb put-item \
+    --table-name citibike-station-status-local \
+    --item '{
+        "station_id": {"S": "66dbf21d-0e22-4a0f-90e6-123456789abc"},
+        "station_name": {"S": "W 21 St & 6 Ave"},
+        "short_name": {"S": "6140.05"},
+        "num_bikes_available": {"N": "14"},
+        "num_ebikes_available": {"N": "3"},
+        "num_docks_available": {"N": "22"},
+        "is_installed": {"BOOL": true},
+        "is_renting": {"BOOL": true},
+        "is_returning": {"BOOL": true},
+        "latitude": {"N": "40.741721"},
+        "longitude": {"N": "-73.994156"},
+        "capacity": {"N": "39"},
+        "info_last_updated": {"N": "1724095349"},
+        "status_last_updated": {"N": "1724095349"}
+    }' \
+    --endpoint-url http://localhost:8000 \
+    --region us-east-1
 
 
 # TODO

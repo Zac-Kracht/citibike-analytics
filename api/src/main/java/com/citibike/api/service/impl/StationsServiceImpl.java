@@ -8,6 +8,8 @@ import com.citibike.api.model.entity.LiveStation;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -17,20 +19,24 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@CacheConfig(cacheNames=StationsServiceImpl.CACHE_NAME)
 public class StationsServiceImpl implements StationsService {
+
+    public static final String CACHE_NAME = "station-status-cache";
+    public static final String CACHE_KEY_ALL_STATIONS = "'all_stations'";
 
     private final StationsRepository stationsRepository;
     private final StationMapper stationMapper;
 
     @Override
-    @Cacheable(value = "${citibike.cache.name:station-status-cache}", key = "'all_stations'")
+    @Cacheable(key=CACHE_KEY_ALL_STATIONS)
     public List<StationsResponseDTO> getAllStations() {
         log.info("Cache miss: fetching station status directly from DynamoDB...");
         return this.retrieveStationsAsDTO();
     }
 
     @Override
-    @CachePut(value = "${citibike.cache.name:station-status-cache}", key = "'all_stations'")
+    @CachePut(key=CACHE_KEY_ALL_STATIONS)
     public List<StationsResponseDTO> refreshStationCache() {
         log.info("Polling DynamoDB to update station cache...");
         return this.retrieveStationsAsDTO();

@@ -1,58 +1,100 @@
 package com.citibike.api.model.entity;
 
-import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
 
-@Getter
 @Setter
 @NoArgsConstructor
 @DynamoDbBean
 public class LiveStation {
 
-    @Getter(onMethod_ = {@DynamoDbPartitionKey, @DynamoDbAttribute("user_id")})
     private String stationId;
-
-    @Getter(onMethod_ = {@DynamoDbAttribute("station_name")})
     private String stationName;
-
-    @Getter(onMethod_ = {@DynamoDbAttribute("short_name")})
     private String shortName;
-
-    @Getter(onMethod_ = {@DynamoDbAttribute("num_bikes_available")})
     private Integer bikesAvailable;
-
-    @Getter(onMethod_ = {@DynamoDbAttribute("num_ebikes_available")})
     private Integer ebikesAvailable;
-
-    @Getter(onMethod_ = {@DynamoDbAttribute("num_docks_available")})
     private Integer docksAvailable;
-
-    @Getter(onMethod_ = {@DynamoDbAttribute("is_installed")})
     private Boolean installed;
-
-    @Getter(onMethod_ = {@DynamoDbAttribute("is_renting")})
     private Boolean renting;
-
-    @Getter(onMethod_ = {@DynamoDbAttribute("is_returning")})
     private Boolean returning;
-
-    @Getter(onMethod_ = {@DynamoDbAttribute("latitude")})
     private Double latitude;
-
-    @Getter(onMethod_ = {@DynamoDbAttribute("longitude")})
     private Double longitude;
-
-    @Getter(onMethod_ = {@DynamoDbAttribute("capacity")})
     private Integer capacity;
-
-    @Getter(onMethod_ = {@DynamoDbAttribute("info_last_updated")})
     private Integer infoLastUpdated;
-
-    @Getter(onMethod_ = {@DynamoDbAttribute("status_last_updated")})
     private Integer statusLastUpdated;
+
+    @DynamoDbPartitionKey
+    @DynamoDbAttribute("station_id")
+    public String getStationId() {
+        return stationId;
+    }
+
+    @DynamoDbAttribute("station_name")
+    public String getStationName() {
+        return stationName;
+    }
+
+    @DynamoDbAttribute("short_name")
+    public String getShortName() {
+        return shortName;
+    }
+
+    @DynamoDbAttribute("num_bikes_available")
+    public Integer getBikesAvailable() {
+        return bikesAvailable;
+    }
+
+    @DynamoDbAttribute("num_ebikes_available")
+    public Integer getEbikesAvailable() {
+        return ebikesAvailable;
+    }
+
+    @DynamoDbAttribute("num_docks_available")
+    public Integer getDocksAvailable() {
+        return docksAvailable;
+    }
+
+    @DynamoDbAttribute("is_installed")
+    public Boolean getInstalled() {
+        return installed;
+    }
+
+    @DynamoDbAttribute("is_renting")
+    public Boolean getRenting() {
+        return renting;
+    }
+
+    @DynamoDbAttribute("is_returning")
+    public Boolean getReturning() {
+        return returning;
+    }
+
+    @DynamoDbAttribute("latitude")
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    @DynamoDbAttribute("longitude")
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    @DynamoDbAttribute("capacity")
+    public Integer getCapacity() {
+        return capacity;
+    }
+
+    @DynamoDbAttribute("info_last_updated")
+    public Integer getInfoLastUpdated() {
+        return infoLastUpdated;
+    }
+
+    @DynamoDbAttribute("status_last_updated")
+    public Integer getStatusLastUpdated() {
+        return statusLastUpdated;
+    }
 
 }

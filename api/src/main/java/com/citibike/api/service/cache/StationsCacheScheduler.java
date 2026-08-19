@@ -13,22 +13,22 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class StationsCacheScheduler {
 
-    private final StationsService stationStatusService;
+    private final StationsService stationsService;
 
     /**
-     * Eagerly populate the cache immediately on application startup.
+     * Populate the cache immediately on application startup.
      */
     @EventListener(ApplicationReadyEvent.class)
     public void onStartup() {
         log.info("Initializing station status cache on application launch...");
-        stationStatusService.refreshStationCache();
+        stationsService.refreshStationCache();
     }
 
     /**
-     * Polls DynamoDB on a fixed delay configured by properties.
+     * Poll DynamoDB on a fixed delay configured by properties.
      */
-    @Scheduled(fixedDelayString = "${citibike.cache.poll-rate-ms}")
+    @Scheduled(fixedDelayString = "${citibike.stations.dynamo.poll.rate-ms}")
     public void scheduleCacheRefresh() {
-        stationStatusService.refreshStationCache();
+        stationsService.refreshStationCache();
     }
 }
