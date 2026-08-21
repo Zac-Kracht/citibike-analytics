@@ -44,3 +44,27 @@ class NetworkStack(Stack):
             "DynamoDBEndpoint",
             service=ec2.GatewayVpcEndpointAwsService.DYNAMODB
         )
+        self.vpc.add_interface_endpoint(
+            "EcrDockerEndpoint",
+            service=ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER
+        )
+        self.vpc.add_interface_endpoint(
+            "EcrApiEndpoint",
+            service=ec2.InterfaceVpcEndpointAwsService.ECR
+        )
+        self.vpc.add_interface_endpoint(
+            "CloudWatchLogsEndpoint",
+            service=ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS
+        )
+        self.vpc.add_interface_endpoint(
+            "SsmEndpoint",
+            service=ec2.InterfaceVpcEndpointAwsService.SSM
+        )
+        self.vpc.add_interface_endpoint(
+            "SsmMessagesEndpoint",
+            service=ec2.InterfaceVpcEndpointAwsService.SSM_MESSAGES
+        )
+        self.vpc.add_interface_endpoint(
+            "Ec2MessagesEndpoint",
+            service=ec2.InterfaceVpcEndpointAwsService.EC2_MESSAGES
+        )

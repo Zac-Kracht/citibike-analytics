@@ -47,7 +47,6 @@ class APIConfig:
     public_alb: bool
     enable_waf: bool
     use_fargate_spot: bool
-    allowed_cidrs: List[str] 
     secret_header_name: str
     secret_name: str
     dynamo_poll_rate_ms: int
@@ -106,10 +105,9 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
             desired_count=1
         ),
         api_config=APIConfig(
-            public_alb=True,
+            public_alb=False,
             enable_waf=False,
             use_fargate_spot=True,
-            allowed_cidrs=[os.getenv("DEV_ALLOWED_CIDR", "")],
             secret_header_name="",
             secret_name="",
             dynamo_poll_rate_ms=1800000
@@ -184,7 +182,6 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
             public_alb=True,
             enable_waf=True,
             use_fargate_spot=False,
-            allowed_cidrs=["0.0.0.0/0"],
             secret_header_name="X-Origin-Verify",
             secret_name="citibike/prod/origin-header-secret",
             dynamo_poll_rate_ms=180000

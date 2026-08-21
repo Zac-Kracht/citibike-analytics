@@ -21,7 +21,12 @@ public class StationsCacheScheduler {
     @EventListener(ApplicationReadyEvent.class)
     public void onStartup() {
         log.info("Initializing station status cache on application launch...");
-        stationsService.refreshStationCache();
+        try {
+            stationsService.refreshStationCache();
+            log.info("Stations cache successfully initialized.");
+        } catch (Exception e) {
+            log.error("Failed to initialize cache: {}", e.getMessage(), e);
+        }
     }
 
     /**
@@ -29,6 +34,10 @@ public class StationsCacheScheduler {
      */
     @Scheduled(fixedDelayString = "${citibike.stations.dynamo.poll.rate-ms}")
     public void scheduleCacheRefresh() {
-        stationsService.refreshStationCache();
+        try {
+            stationsService.refreshStationCache();
+        } catch (Exception e) {
+            log.error("Failed to refresh cache: {}", e.getMessage(), e);
+        }
     }
 }

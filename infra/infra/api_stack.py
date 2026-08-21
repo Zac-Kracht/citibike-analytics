@@ -4,20 +4,18 @@ from aws_cdk import (
     aws_ecs as ecs,
     aws_ec2 as ec2,
     aws_ecs_patterns as ecs_patterns,
-    aws_ecr_assets as ecr_assets,
+    aws_ecr as ecr,
     aws_wafv2 as wafv2,
     aws_dynamodb as dynamodb,
-    aws_secretsmanager as secretsmanager,
-    aws_iam as iam,
     aws_logs as logs
 )
 from constructs import Construct
 from infra.config import EnvironmentConfig
-
 from infra.constants import (
     REMOVAL_POLICY_MAP,
     LOG_RETENTION_DAYS_MAP
 )
+import os
 
 
 class APIStack(Stack):
@@ -46,6 +44,12 @@ class APIStack(Stack):
             removal_policy=REMOVAL_POLICY_MAP[config.removal_policy]
         )
 
+        if config.env_name == "prod":
+            ecr_repo = ecr.Repository.from_repository_name(self, "ApiEcrRepo", "citibike-backend-api")
+            self.image = ecs.ContainerImage.from_ecr_repository(ecr_repo, tag=os.getenv("IMAGE_TAG", "latest"))
+        else:
+            self.image = ecs.ContainerImage.from_asset("../api")
+
         self.fargate_service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self, f"FargateService",
             cluster=self.cluster,
@@ -57,7 +61,7 @@ class APIStack(Stack):
             public_load_balancer=config.api_config.public_alb,
             task_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
             task_image_options=ecs_patterns.ApplicationLoadBalancedTaskImageOptions(
-                image=ecs.ContainerImage.from_asset("../backend"),
+                image=self.image,
                 container_port=8080,
                 log_driver=ecs.LogDriver.aws_logs(
                     stream_prefix="citibike-api",
@@ -67,27 +71,38 @@ class APIStack(Stack):
                     "SPRING_PROFILES_ACTIVE": config.env_name,
                     "DYNAMODB_TABLE_NAME": live_station_table.table_name,
                     "AWS_REGION": self.region,
-                    "DYNAMO_TABLE_POLL_RATE": config.api_config.dynamo_poll_rate_ms
+                    "DYNAMO_TABLE_POLL_RATE": str(config.api_config.dynamo_poll_rate_ms)
                 }
             )
         )
 
         # Use SPOT instances in dev for cost savings
         if config.api_config.use_fargate_spot:
-            cfn_service = self.fargate_service.service.node.default_child
-            cfn_service.capacity_provider_strategy = [
+            self.cfn_service = self.fargate_service.service.node.default_child
+            self.cfn_service.capacity_provider_strategy = [
                 {
                     "capacityProvider": "FARGATE_SPOT",
                     "weight": 1
                 }
             ]
+            self.cfn_service.launch_type = None
 
-        # Limit dev traffic to local device
-        if not config.api_config.public_alb or config.env_name == "dev":
-            self.fargate_service.load_balancer.connections.security_groups[0].add_ingress_rule(
-                peer=ec2.Peer.ipv4(config.api_config.allowed_cidrs[0]),
-                connection=ec2.Port.tcp(80),
-                description="Allow local development machine only"
+        if not config.api_config.public_alb:
+            self.network_bastion = ec2.BastionHostLinux(
+                self, "DevSsmBastion",
+                vpc=vpc,
+                subnet_selection=ec2.SubnetSelection(
+                    subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
+                ),
+                instance_type=ec2.InstanceType.of(
+                    ec2.InstanceClass.T3, ec2.InstanceSize.MICRO
+                )
+            )
+
+            self.fargate_service.load_balancer.connections.allow_from(
+                self.network_bastion,
+                ec2.Port.tcp(80),
+                "Allow SSM Bastion to route local dev traffic to private ALB"
             )
 
         live_station_table.grant_read_data(self.fargate_service.task_definition.task_role)
@@ -101,10 +116,7 @@ class APIStack(Stack):
         )
 
         if config.api_config.enable_waf:
-            origin_secret = secretsmanager.Secret.from_secret_name_v2(
-                self, f"APIOriginSecret", config.api_config.secret_name
-            )
-            secret_token = origin_secret.secret_value.unsafe_unwrap()
+            secret_token_reference = f"{{{{resolve:secretsmanager:{config.api_config.secret_name}:SecretString}}}}"
 
             self.web_acl = wafv2.CfnWebACL(
                 self, f"WebACL",
@@ -125,7 +137,7 @@ class APIStack(Stack):
                             not_statement=wafv2.CfnWebACL.StatementProperty(
                                 statement=wafv2.CfnWebACL.StatementProperty(
                                     byte_match_statement=wafv2.CfnWebACL.ByteMatchStatementProperty(
-                                        search_string=secret_token,
+                                        search_string=secret_token_reference,
                                         field_to_match=wafv2.CfnWebACL.FieldToMatchProperty(
                                             single_header={"name": config.api_config.secret_header_name.lower()}
                                         ),

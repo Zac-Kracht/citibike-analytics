@@ -2,6 +2,7 @@ import logging
 
 from typing import Any, Dict
 from botocore.exceptions import ClientError
+from decimal import Decimal, InvalidOperation
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -92,10 +93,11 @@ class DynamoDBService():
         logger.info(f"Successfully updated info for {len(stations)-error_count}/{len(stations)} stations in DynamoDB. Error count: {error_count}")
         return error_count
 
-    def _to_float(val):
+    def _to_float(self, val):
         try:
-            return float(val) if val is not None else None
-        except (ValueError, TypeError):
+            # Boto3 requires Decimal for floating point numbers
+            return Decimal(str(val)) if val is not None else None
+        except (ValueError, TypeError, InvalidOperation):
             return None
 
 

@@ -37,7 +37,7 @@ public class DynamoDbConfig {
         }
 
         // If static dummy credentials are provided (local profile)
-        if (accessKeyId != null && secretAccessKey != null) {
+        if (accessKeyId != null && !accessKeyId.isBlank() && secretAccessKey != null && !secretAccessKey.isBlank()) {
             builder.credentialsProvider(
                 StaticCredentialsProvider.create(
                     AwsBasicCredentials.create(accessKeyId, secretAccessKey)

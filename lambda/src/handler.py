@@ -43,7 +43,7 @@ def _handle_station_status(config: Config, event: dict):
         dynamodb_client,
         config.DYNAMODB_TABLE_NAME
     )
-    dynamo_service.update_station_status(stations, epoch_ts)
+    dynamo_errors = dynamo_service.update_station_status(stations, epoch_ts)
 
     partition_str = now.strftime("year=%Y/month=%m/day=%d/hour=%H")
     station_status_s3_key = f"bronze/gbfs/station_status/{partition_str}/status_file_{epoch_ts}.json"
@@ -56,7 +56,8 @@ def _handle_station_status(config: Config, event: dict):
 
     return {
         "s3_key": station_status_s3_key,
-        "payload_size": station_status_payload_size
+        "payload_size": station_status_payload_size,
+        "dynamo_error_count": dynamo_errors
     }
 
 
@@ -85,7 +86,7 @@ def _handle_station_info(config: Config, event: dict):
         dynamodb_client,
         config.DYNAMODB_TABLE_NAME
     )
-    dynamo_service.update_station_info(stations, epoch_ts)
+    dynamo_errors = dynamo_service.update_station_info(stations, epoch_ts)
 
     partition_str = now.strftime("year=%Y/month=%m/day=%d")
     station_info_s3_key = f"bronze/gbfs/station_info/{partition_str}/info_file_{epoch_ts}.json"
@@ -98,7 +99,8 @@ def _handle_station_info(config: Config, event: dict):
 
     return {
         "s3_key": station_info_s3_key,
-        "payload_size": station_info_payload_size
+        "payload_size": station_info_payload_size,
+        "dynamo_error_count": dynamo_errors
     }
 
 def _handle_historical_trips(config: Config, event: dict):

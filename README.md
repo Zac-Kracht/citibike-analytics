@@ -6,18 +6,22 @@ E2E New York City Citi Bike tracking platform including data ingestion, storage,
 aws cdk (https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 
 # commands
+
+# Python env
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
+# CDK Deploy
 nvm use 22
 aws login
-export DEV_ALLOWED_CIDR=$(curl -s https://checkip.amazonaws.com)/32
 npx cdk deploy -c env=dev
 npx cdk destroy -c env=dev
 
+# Local run/test API
 ./mvnw clean compile
 ./mvnw spring-boot:run
+./mvnw clean test
 
 docker rm -f dynamodb-local
 
@@ -59,6 +63,30 @@ aws dynamodb put-item \
     }' \
     --endpoint-url http://localhost:8000 \
     --region us-east-1
+
+# Ping dev API locally:
+export BASTION_INSTANCE_ID=$(aws ec2 describe-instances \
+  --filters "Name=instance-state-name,Values=running" \
+  --query "Reservations[*].Instances[?contains(Tags[?Key=='Name'].Value | [0], 'Bastion') || contains(Tags[?Key=='Name'].Value | [0], 'bastion')].InstanceId" \
+  --output text | awk '{print $1}')
+
+export INTERNAL_ALB_DNS_NAME=$(aws elbv2 describe-load-balancers \
+  --query "LoadBalancers[?Scheme=='internal'].DNSName" \
+  --output text | awk '{print $1}')
+
+aws ssm start-session \
+  --target "$BASTION_INSTANCE_ID" \
+  --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  --parameters '{"host":["'$INTERNAL_ALB_DNS_NAME'"],"portNumber":["80"],"localPortNumber":["8080"]}'
+
+curl http://localhost:8080/api/v1/stations
+
+# Push prod docker image
+prod docker:
+aws ecr get-login-password --region <YOUR_REGION> | docker login --username AWS --password-stdin <YOUR_ACCOUNT_ID>.dkr.ecr.<YOUR_REGION>.amazonaws.com
+docker build -t citibike-backend-api .
+docker tag citibike-backend-api:latest <YOUR_ACCOUNT_ID>.dkr.ecr.<YOUR_REGION>.amazonaws.com/citibike-backend-api:latest
+docker push <YOUR_ACCOUNT_ID>.dkr.ecr.<YOUR_REGION>.amazonaws.com/citibike-backend-api:latest
 
 
 # TODO
