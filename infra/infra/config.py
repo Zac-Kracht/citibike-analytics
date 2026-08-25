@@ -1,5 +1,8 @@
+import os
+
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
+
 
 @dataclass
 class TransitionConfig:
@@ -22,7 +25,6 @@ class S3Config:
 @dataclass
 class LambdaConfig:
     status_poll_rate_minutes: int
-    logs_retention_days: str
 
 @dataclass
 class GlueConfig:
@@ -35,19 +37,38 @@ class DynamoConfig:
     point_in_time_recovery: bool
 
 @dataclass
+class FargateConfig:
+    cpu: int
+    memory_limit_mib: int
+    desired_count: int
+
+@dataclass
+class APIConfig:
+    public_alb: bool
+    enable_waf: bool
+    use_fargate_spot: bool
+    secret_header_name: str
+    secret_name: str
+    dynamo_poll_rate_ms: int
+
+@dataclass
 class EnvironmentConfig:
     env_name: str
     removal_policy: str
+    logs_retention_days: str
     s3_config: S3Config
     lambda_config: LambdaConfig
     glue_config: GlueConfig
     dynamo_config: DynamoConfig
+    fargate_config: FargateConfig
+    api_config: APIConfig
     
 
 ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
     "dev": EnvironmentConfig(
         env_name="dev",
         removal_policy="DESTROY",
+        logs_retention_days="ONE_WEEK",
         s3_config = S3Config(
             auto_delete_objects=True,
             lifecycle_rules=[
@@ -68,8 +89,7 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
             ]
         ),
         lambda_config=LambdaConfig(
-            status_poll_rate_minutes=10,
-            logs_retention_days="ONE_WEEK"
+            status_poll_rate_minutes=30
         ),
         glue_config=GlueConfig(
             execution_class="FLEX",
@@ -78,11 +98,25 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
         dynamo_config=DynamoConfig(
             deletion_protection=False,
             point_in_time_recovery=False
+        ),
+        fargate_config=FargateConfig(
+            cpu=256,
+            memory_limit_mib=512,
+            desired_count=1
+        ),
+        api_config=APIConfig(
+            public_alb=False,
+            enable_waf=False,
+            use_fargate_spot=True,
+            secret_header_name="",
+            secret_name="",
+            dynamo_poll_rate_ms=1800000
         )
     ),
     "prod": EnvironmentConfig(
         env_name="prod",
         removal_policy="RETAIN",
+        logs_retention_days="ONE_MONTH",
         s3_config=S3Config(
             auto_delete_objects=False,
             lifecycle_rules=[
@@ -129,8 +163,7 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
             ]
         ),
         lambda_config=LambdaConfig(
-            status_poll_rate_minutes=3,
-            logs_retention_days="ONE_MONTH"
+            status_poll_rate_minutes=3
         ),
         glue_config=GlueConfig(
             execution_class="STANDARD",
@@ -139,6 +172,19 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
         dynamo_config=DynamoConfig(
             deletion_protection=True,
             point_in_time_recovery=True
+        ),
+        fargate_config=FargateConfig(
+            cpu=256,
+            memory_limit_mib=512,
+            desired_count=1
+        ),
+        api_config=APIConfig(
+            public_alb=True,
+            enable_waf=True,
+            use_fargate_spot=False,
+            secret_header_name="X-Origin-Verify",
+            secret_name="citibike/prod/origin-header-secret",
+            dynamo_poll_rate_ms=180000
         )
     )
 }

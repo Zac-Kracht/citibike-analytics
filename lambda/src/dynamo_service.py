@@ -2,6 +2,7 @@ import logging
 
 from typing import Any, Dict
 from botocore.exceptions import ClientError
+from decimal import Decimal, InvalidOperation
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -76,8 +77,8 @@ class DynamoDBService():
                     ExpressionAttributeValues={
                         ":station_name": station.get("name", ""),
                         ":short_name": station.get("short_name", ""),
-                        ":lat": str(station.get("lat", "")),
-                        ":lon": str(station.get("lon", "")),
+                        ":lat": self._to_float(station.get("lat")),
+                        ":lon": self._to_float(station.get("lon")),
                         ":capacity": station.get("capacity", 0),
                         ":updated_at": updated_at_ts
                     }
@@ -91,5 +92,12 @@ class DynamoDBService():
 
         logger.info(f"Successfully updated info for {len(stations)-error_count}/{len(stations)} stations in DynamoDB. Error count: {error_count}")
         return error_count
+
+    def _to_float(self, val):
+        try:
+            # Boto3 requires Decimal for floating point numbers
+            return Decimal(str(val)) if val is not None else None
+        except (ValueError, TypeError, InvalidOperation):
+            return None
 
 

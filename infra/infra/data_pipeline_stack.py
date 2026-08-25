@@ -1,7 +1,6 @@
 from aws_cdk import (
     Stack,
     Duration,
-    RemovalPolicy,
     aws_s3 as s3,
     aws_dynamodb as dynamodb,
     aws_lambda as lambda_,
@@ -14,26 +13,14 @@ from aws_cdk import (
 )
 from constructs import Construct
 from infra.config import EnvironmentConfig
+from infra.constants import (
+    STORAGE_CLASS_MAP,
+    REMOVAL_POLICY_MAP,
+    LOG_RETENTION_DAYS_MAP
+)
 
-STORAGE_CLASS_MAP = {
-    "INTELLIGENT_TIERING": s3.StorageClass.INTELLIGENT_TIERING,
-    "INFREQUENT_ACCESS": s3.StorageClass.INFREQUENT_ACCESS,
-    "GLACIER": s3.StorageClass.GLACIER,
-    "GLACIER_INSTANT_RETRIEVAL": s3.StorageClass.GLACIER_INSTANT_RETRIEVAL
-}
 
-REMOVAL_POLICY_MAP = {
-    "RETAIN": RemovalPolicy.RETAIN,
-    "DESTROY": RemovalPolicy.DESTROY,
-}
-
-LOG_RETENTION_DAYS_MAP = {
-    "ONE_WEEK": logs.RetentionDays.ONE_WEEK,
-    "ONE_MONTH": logs.RetentionDays.ONE_MONTH,
-    "ONE_YEAR": logs.RetentionDays.ONE_YEAR
-}
-
-class IngestionStack(Stack):
+class DataPipelineStack(Stack):
 
     def __init__(
         self,
@@ -43,8 +30,6 @@ class IngestionStack(Stack):
         **kwargs
         ) -> None:
         super().__init__(scope, construct_id, **kwargs)
-
-        stack_prefix = "CitiBikeAnalytics"
 
         # S3 Data Lake
 
@@ -68,7 +53,7 @@ class IngestionStack(Stack):
             )
 
         self.s3_bucket = s3.Bucket(
-            self, f"{stack_prefix}DataLakeBucket",
+            self, f"S3DataLakeBucket",
             bucket_name_prefix=f"citibike-analytics-data-lake-{config.env_name}",
             bucket_namespace=s3.BucketNamespace.ACCOUNT_REGIONAL,
             versioned=False,
@@ -83,7 +68,7 @@ class IngestionStack(Stack):
         # DynamoDB
 
         self.live_station_status_table = dynamodb.Table(
-            self, f"{stack_prefix}StationStatusDynamoTable",
+            self, f"LiveStationStatusDynamoTable",
             table_name=f"citibike-live-station-status-{config.env_name}",
             partition_key=dynamodb.Attribute(
                 name="station_id",
@@ -99,14 +84,14 @@ class IngestionStack(Stack):
         # Ingestion Lambda
 
         self.ingestion_lambda_log_group = logs.LogGroup(
-            self, f"{stack_prefix}IngestionLambdaLogGroup",
+            self, f"IngestionLambdaLogGroup",
             log_group_name=f"/aws/lambda/citibike-ingestion-lambda-{config.env_name}",
-            retention=LOG_RETENTION_DAYS_MAP[config.lambda_config.logs_retention_days],
+            retention=LOG_RETENTION_DAYS_MAP[config.logs_retention_days],
             removal_policy=REMOVAL_POLICY_MAP[config.removal_policy]
         )
 
         self.ingestion_lambda = lambda_.Function(
-            self, f"{stack_prefix}IngestionLambda",
+            self, f"IngestionLambda",
             function_name=f"citibike-ingestion-lambda-{config.env_name}",
             runtime=lambda_.Runtime.PYTHON_3_11,
             handler="src.handler.lambda_handler",
@@ -141,7 +126,7 @@ class IngestionStack(Stack):
         ## Lambda triggers
 
         self.scheduled_lambda_status_rule = events.Rule(
-            self, f"{stack_prefix}ScheduledLambdaStatusRule",
+            self, f"ScheduledLambdaStatusRule",
             rule_name=f"citibike-scheduled-lambda-status-rule-{config.env_name}",
             schedule=events.Schedule.rate(Duration.minutes(config.lambda_config.status_poll_rate_minutes))
         )
@@ -153,7 +138,7 @@ class IngestionStack(Stack):
         )
 
         self.scheduled_lambda_info_rule = events.Rule(
-            self, f"{stack_prefix}ScheduledLambdaInfoRule",
+            self, f"ScheduledLambdaInfoRule",
             rule_name=f"citibike-scheduled-lambda-info-rule-{config.env_name}",
             schedule=events.Schedule.cron(hour="12", minute="0")
         )
@@ -165,7 +150,7 @@ class IngestionStack(Stack):
         )
 
         self.scheduled_lambda_trips_rule = events.Rule(
-            self, f"{stack_prefix}ScheduledLambdaTripsRule",
+            self, f"ScheduledLambdaTripsRule",
             rule_name=f"citibike-scheduled-lambda-trips-rule-{config.env_name}",
             schedule=events.Schedule.cron(day="15", hour="6", minute="0")
         )
@@ -179,7 +164,7 @@ class IngestionStack(Stack):
         # Glue Jobs
 
         self.glue_role = iam.Role(
-            self, f"{stack_prefix}GlueRole",
+            self, f"GlueJobRole",
             role_name=f"citibike-analytics-glue-service-role-{config.env_name}",
             assumed_by=iam.ServicePrincipal("glue.amazonaws.com")
         )
@@ -192,13 +177,13 @@ class IngestionStack(Stack):
         ### GBFS 
 
         self.gbfs_script_asset = s3_assets.Asset(
-            self, f"{stack_prefix}GBFSBronzeToSilverScriptAsset",
+            self, f"GBFSBronzeToSilverScriptAsset",
             path="../etl/jobs/gbfs_bronze_to_silver.py"
         )
         self.gbfs_script_asset.grant_read(self.glue_role)
 
         self.gbfs_glue_job = glue.CfnJob(
-            self, f"{stack_prefix}GBFSBronzeToSilverGlueJob",
+            self, f"GBFSBronzeToSilverGlueJob",
             name=f"citibike-etl-gbfs-bronze-to-silver-{config.env_name}",
             role=self.glue_role.role_arn,
             glue_version="4.0",
@@ -223,7 +208,7 @@ class IngestionStack(Stack):
         )
 
         self.gbfs_hourly_trigger = glue.CfnTrigger(
-            self, f"{stack_prefix}GBFSHourlyTrigger",
+            self, f"GBFSHourlyTrigger",
             name=f"citibike-etl-gbfs-hourly-trigger-{config.env_name}",
             type="SCHEDULED",
             schedule="cron(5 * * * ? *)", # Every hour at 5 past the hour
@@ -238,13 +223,13 @@ class IngestionStack(Stack):
         ### Trips
 
         self.trips_script_asset = s3_assets.Asset(
-            self, f"{stack_prefix}TripsBronzeToSilverScriptAsset",
+            self, f"TripsBronzeToSilverScriptAsset",
             path="../etl/jobs/trips_bronze_to_silver.py"
         )
         self.trips_script_asset.grant_read(self.glue_role)
 
         self.trips_glue_job = glue.CfnJob(
-            self, f"{stack_prefix}TripsBronzeToSilverGlueJob",
+            self, f"TripsBronzeToSilverGlueJob",
             name=f"citibike-etl-trips-bronze-to-silver-{config.env_name}",
             role=self.glue_role.role_arn,
             glue_version="4.0",
@@ -268,7 +253,7 @@ class IngestionStack(Stack):
         )
 
         self.bronze_trips_event_rule = events.Rule(
-            self, f"{stack_prefix}BronzeTripsEventRule",
+            self, f"BronzeTripsEventRule",
             event_pattern=events.EventPattern(
                 source=["aws.s3"],
                 detail_type=["Object Created"],
@@ -289,71 +274,3 @@ class IngestionStack(Stack):
                 parameters={"JobName": self.trips_glue_job.name}
             )
         )
-
-        # S3 Access
-
-        self.s3_bucket.add_to_resource_policy(
-            iam.PolicyStatement(
-                sid="RestrictWriteAccess",
-                effect=iam.Effect.DENY,
-                principals=[iam.AnyPrincipal()],
-                actions=["s3:PutObject", "s3:AbortMultipartUpload"],
-                resources=[f"{self.s3_bucket.bucket_arn}/*"],
-                conditions={
-                    "StringNotLike": {
-                        "aws:PrincipalArn": [
-                            self.ingestion_lambda.role.role_arn,
-                            self.glue_role.role_arn,
-                            f"arn:aws:iam::{self.account}:role/cdk-*",
-                            f"arn:aws:iam::{self.account}:root", 
-                            f"arn:aws:iam::{self.account}:user/*",  
-                            f"arn:aws:iam::{self.account}:role/aws-reserved/*"
-                        ]
-                    }
-                }
-            )
-        )
-
-        self.s3_bucket.add_to_resource_policy(
-            iam.PolicyStatement(
-                sid="RestrictReadAccess",
-                effect=iam.Effect.DENY,
-                principals=[iam.AnyPrincipal()],
-                actions=["s3:GetObject"],
-                resources=[f"{self.s3_bucket.bucket_arn}/*"],
-                conditions={
-                    "StringNotLike": {
-                        "aws:PrincipalArn": [
-                            self.glue_role.role_arn,
-                            f"arn:aws:iam::{self.account}:role/cdk-*",
-                            f"arn:aws:iam::{self.account}:root", 
-                            f"arn:aws:iam::{self.account}:user/*",  
-                            f"arn:aws:iam::{self.account}:role/aws-reserved/*"
-                        ]
-                    }
-                }
-            )
-        )
-
-        self.s3_bucket.add_to_resource_policy(
-            iam.PolicyStatement(
-                sid="RestrictReadAccess",
-                effect=iam.Effect.DENY,
-                principals=[iam.AnyPrincipal()],
-                actions=["s3:ListBucket"],
-                resources=[self.s3_bucket.bucket_arn],
-                conditions={
-                    "StringNotLike": {
-                        "aws:PrincipalArn": [
-                            self.glue_role.role_arn,
-                            f"arn:aws:iam::{self.account}:role/cdk-*",
-                            f"arn:aws:iam::{self.account}:root", 
-                            f"arn:aws:iam::{self.account}:user/*",  
-                            f"arn:aws:iam::{self.account}:role/aws-reserved/*"
-                        ]
-                    }
-                }
-            )
-        )
-
-

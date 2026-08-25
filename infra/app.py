@@ -3,7 +3,9 @@ import os
 
 import aws_cdk as cdk
 
-from infra.ingestion_stack import IngestionStack
+from infra.data_pipeline_stack import DataPipelineStack
+from infra.network_stack import NetworkStack
+from infra.api_stack import APIStack
 from infra.config import ENVIRONMENTS
 
 
@@ -21,10 +23,24 @@ cdk_env = cdk.Environment(
     region=os.getenv('CDK_DEFAULT_REGION')
 )
 
-IngestionStack(
+data_pipeline = DataPipelineStack(
     app, 
-    f"CitiBike-Analytics-IngestionStack-{config.env_name}",
+    f"CitiBike-DataPipeline-{config.env_name}",
     config,
+    env=cdk_env
+)
+network = NetworkStack(
+    app,
+    f"CitiBike-Network-{config.env_name}",
+    config,
+    env=cdk_env
+)
+api = APIStack(
+    app,
+    f"CitiBike-API-{config.env_name}",
+    config,
+    data_pipeline.live_station_status_table,
+    network.vpc,
     env=cdk_env
 )
 
