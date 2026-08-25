@@ -88,6 +88,11 @@ docker build -t citibike-backend-api .
 docker tag citibike-backend-api:latest <YOUR_ACCOUNT_ID>.dkr.ecr.<YOUR_REGION>.amazonaws.com/citibike-backend-api:latest
 docker push <YOUR_ACCOUNT_ID>.dkr.ecr.<YOUR_REGION>.amazonaws.com/citibike-backend-api:latest
 
+# Run frontend
+nvm use 22
+nvm alias default 22
+npm install
+npm run dev
 
 # TODO
 dynamoV2 migration
