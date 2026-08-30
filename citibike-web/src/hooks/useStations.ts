@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { FeatureCollection } from 'geojson';
 import type { Station } from '../types';
 
@@ -8,22 +8,28 @@ export function useStations() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchStations = async () => {
-      try {
-        const response = await fetch('http://localhost:8080/api/v1/stations'); // TODO: configure this as property
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  const fetchStations = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const baseUrl = import.meta.env.VITE_GET_STATIONS_BASE_URL;
+      const response = await fetch(`${baseUrl}/api/v1/stations`);
+      
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      
+      const validStations = data.filter((s: any) => s.latitude != null && s.longitude != null && s.isInstalled);
+      setStations(validStations);
+    } catch (err) {
+      console.error("Failed to fetch stations:", err);
+      setError("Unable to connect to the live network."); 
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-        const data = await response.json();
-        const validStations = data.filter((s: any) => s.latitude != null && s.longitude != null && s.isInstalled);
-        setStations(validStations);
-      } catch (err) {
-        console.error("Failed to fetch stations:", err);
-        setError(err instanceof Error ? err.message : "Failed to load stations");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  useEffect(() => {
     fetchStations();
   }, []);
 
@@ -45,5 +51,5 @@ export function useStations() {
     };
   }, [stations]);
 
-  return { stations, geoJsonData, isLoading, error };
+  return { stations, geoJsonData, isLoading, error, refetch: fetchStations };
 }

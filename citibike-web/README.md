@@ -13,20 +13,17 @@ When a pin is clicked on the map zooms to show the pin + the top 5 destination p
 Toggleable heatmap overlay on map
 
 # TODO Phase 1
-custom pins
-On pin hover:
-- show name
-- slightly enlarge
-- show summarized inventory
-Page load position (location based and/or general)
-Loading screen
-Loading error screen
+Live refresh
 Dev vs Prod API
-Infra
-Turn maptiler API key into secret
-Backend API key secret
+Infra (& secrets)
 REPO CLEANUP/BEST PRACTICES
 Code formatting (spacing)
 Tests
 
 # TODO Phase 2
+Heatmap
+Top 5 destinations panel
+Show top 5 destinations on selected station
+Daily average use graph
+Tab icon
+Mobile view

@@ -18,6 +18,13 @@ aws login
 npx cdk deploy -c env=dev
 npx cdk destroy -c env=dev
 
+for docker error:
+sudo usermod -aG docker $USER
+newgrp docker
+
+for loggroup error:
+aws logs delete-log-group --log-group-name /aws/lambda/citibike-ingestion-lambda-dev
+
 # Local run/test API
 ./mvnw clean compile
 ./mvnw spring-boot:run
@@ -114,3 +121,4 @@ vulnerability management
 makefiles
 multi language support
 front end accessibility
+monetize/ads

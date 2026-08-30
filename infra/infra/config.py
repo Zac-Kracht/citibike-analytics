@@ -67,7 +67,7 @@ class EnvironmentConfig:
 ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
     "dev": EnvironmentConfig(
         env_name="dev",
-        removal_policy="RETAIN",
+        removal_policy="DESTROY",
         logs_retention_days="THREE_DAYS",
         s3_config = S3Config(
             auto_delete_objects=False,

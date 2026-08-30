@@ -1,26 +1,27 @@
 import { useState, useCallback, useRef } from 'react';
-import Map, { Source, Layer, NavigationControl } from 'react-map-gl/maplibre';
+import Map, { Source, Layer, NavigationControl, GeolocateControl } from 'react-map-gl/maplibre';
 import type { MapRef } from 'react-map-gl/maplibre';
+import type { Station, HoverInfo } from '../types';
 import { useStations } from '../hooks/useStations';
 import { stationsLayer } from '../config/mapLayers';
+import { NYC_BOUNDS, MAX_BOUNDS_ARRAY } from '../config/constants';
 import StationSummaryPanel from './StationSummaryPanel';
-import type { Station } from '../types';
+import DataLoading from './DataLoading';
+import MapErrorBanner from './MapErrorBanner';
+import HoverSummary from './HoverSummary';
+import LocationWarning from './LocationWarning';
 
 
 export default function NewYorkMap() {
-    const { geoJsonData, isLoading, error } = useStations();
+    const { geoJsonData, isLoading, error, refetch } = useStations();
     const [selectedStation, setSelectedStation] = useState<Station | null>(null);
-    const [hoverInfo, setHoverInfo] = useState<{
-        x: number;
-        y: number;
-        name: string;
-        bikes: number;
-    } | null>(null);
+    const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
+    const [locationWarning, setLocationWarning] = useState<string | null>(null);
 
     const mapRef = useRef<MapRef>(null);
     const hoveredFeatureId = useRef<string | null>(null);
 
-    const mapStyleUrl = `https://api.maptiler.com/maps/streets-v2/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`; // TODO: secret
+    const mapStyleUrl = `https://api.maptiler.com/maps/streets-v2/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`;
 
     const onMapClick = useCallback((event: any) => {
         const feature = event.features?.[0];
@@ -93,40 +94,36 @@ export default function NewYorkMap() {
         setHoverInfo(null);
     }, []);
 
-    return (
-        // Flex container controls the layout between the Map and the Side Panel
-        <div className="w-full h-full relative flex overflow-hidden">
-            
-            {/* The Map occupies all remaining space using flex-1 */}
-            <div className="flex-1 relative">
-                {isLoading && (
-                    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-md shadow-md z-10">
-                        <p className="font-semibold text-gray-700">Loading live station data...</p>
-                    </div>
-                )}
-            
-                {error && (
-                    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-md shadow-md z-10">
-                        <p className="font-semibold">Error: {error}</p>
-                    </div>
-                )}
+    const handleGeolocate = useCallback((event: any) => {
+        const userLng = event.coords.longitude;
+        const userLat = event.coords.latitude;
 
-                {hoverInfo && (
-                    <div
-                        className="absolute z-30 pointer-events-none bg-gray-900/90 text-white text-xs px-2.5 py-1.5 rounded shadow-lg transform -translate-x-1/2 -translate-y-full -mt-2 whitespace-nowrap"
-                        style={{ left: hoverInfo.x, top: hoverInfo.y }}
-                    >
-                        <p className="font-semibold">{hoverInfo.name}</p>
-                        <p className="text-gray-300">{hoverInfo.bikes} bikes available</p>
-                    </div>
-                )}
+        const isOutOfBounds = 
+            userLng < NYC_BOUNDS.sw.lng || 
+            userLng > NYC_BOUNDS.ne.lng || 
+            userLat < NYC_BOUNDS.sw.lat || 
+            userLat > NYC_BOUNDS.ne.lat;
+
+        if (isOutOfBounds) {
+            setLocationWarning("You appear to be outside the Citi Bike service area.");
+            setTimeout(() => setLocationWarning(null), 5000);
+        }
+    }, []);
+
+    return (
+        <div className="w-full h-full relative flex overflow-hidden">
+            <div className="flex-1 relative">
+                {isLoading && <DataLoading/>}
+                {error && <MapErrorBanner message={error} onRetry={refetch} />}
+                {hoverInfo && <HoverSummary info={hoverInfo} />}
+                {locationWarning && <LocationWarning message={locationWarning} onExitButtonClick={() => setLocationWarning(null)} />}
             
                 <Map
                     ref={mapRef}
                     initialViewState={{
                         longitude: -73.985,
                         latitude: 40.748,
-                        zoom: 12.5,
+                        zoom: 11.5,
                         pitch: 0,
                         bearing: 0
                     }}
@@ -137,8 +134,17 @@ export default function NewYorkMap() {
                     onMouseMove={onMouseMove} 
                     onMouseLeave={onMouseLeave} 
                     cursor={hoverInfo ? "pointer" : "grab"}
+                    minZoom={10}
+                    maxBounds={MAX_BOUNDS_ARRAY}
                 >
                     <NavigationControl position="bottom-right" showCompass={false} />
+
+                    <GeolocateControl 
+                        position="bottom-right" 
+                        trackUserLocation={true}
+                        showUserHeading={true} 
+                        onGeolocate={handleGeolocate}
+                    />
             
                     <Source id="stations" type="geojson" data={geoJsonData}>
                         <Layer {...stationsLayer} />
@@ -146,7 +152,6 @@ export default function NewYorkMap() {
                 </Map>
             </div>
 
-            {/* The Side Panel renders on the right if a station is selected */}
             {selectedStation && (
                 <StationSummaryPanel
                     station={selectedStation} 
