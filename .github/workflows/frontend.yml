@@ -1,0 +1,37 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'citibike-web/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'citibike-web/**'
+
+jobs:
+  validate-ui:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./citibike-web
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: citibike-web/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Component Tests
+        run: npm run test -- --run
+
+      - name: Verify Production Build
+        run: npm run build

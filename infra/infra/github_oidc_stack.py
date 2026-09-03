@@ -20,7 +20,7 @@ class GitHubOIDCStack(Stack):
             self, "GitHubActionsDevDeployRole",
             role_name="GitHubActionsDevDeployRole",
             assumed_by=iam.FederatedPrincipal(
-                github_provider.open_oidc_provider_arn,
+                github_provider.open_id_connect_provider_arn,
                 conditions={
                     "StringEquals": {
                         "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
@@ -29,7 +29,7 @@ class GitHubOIDCStack(Stack):
                         "token.actions.githubusercontent.com:sub": f"repo:{github_repo}:ref:refs/heads/main"
                     }
                 },
-                additional_action="sts:AssumeRoleWithWebIdentity"
+                assume_role_action="sts:AssumeRoleWithWebIdentity"
             )
         )
 

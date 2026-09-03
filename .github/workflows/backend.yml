@@ -1,0 +1,135 @@
+name: Backend & Data Pipeline CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'api/**'
+      - 'infra/**'
+      - 'lambda/**'
+      - 'etl/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'api/**'
+      - 'infra/**'
+      - 'lambda/**'
+      - 'etl/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+
+      - name: Run Spring Boot Tests
+        run: mvn test
+        working-directory: ./api
+
+  test-lambdas:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: lambda/requirements.txt
+
+      - name: Install Lambda Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        working-directory: ./lambda
+
+      - name: Lint Code with Ruff
+        run: ruff check .
+        working-directory: ./lambda
+
+      - name: Run Lambda Unit Tests
+        run: pytest
+        working-directory: ./lambda
+
+  test-etl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17 for PySpark
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Set up Poetry Cache
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'poetry'
+
+      - name: Install ETL Dependencies
+        run: poetry install
+        working-directory: ./etl
+
+      - name: Lint ETL Code with Ruff
+        run: poetry run ruff check .
+        working-directory: ./etl
+
+      - name: Run PySpark & Chispa Tests
+        run: poetry run pytest
+        working-directory: ./etl
+
+  deploy-dev:
+    needs: [test-api, test-lambdas, test-etl]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: infra/requirements-dev.txt
+
+      - name: Install CDK Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+        working-directory: ./infra
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsDevDeployRole
+          aws-region: us-east-1
+
+      - name: Deploy Dev Infrastructure
+        run: npx aws-cdk deploy -c env=dev --all --require-approval never
+        working-directory: ./infra
