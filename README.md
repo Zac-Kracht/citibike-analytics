@@ -121,4 +121,4 @@ vulnerability management
 makefiles
 multi language support
 front end accessibility
-monetize/ads
+claude skills

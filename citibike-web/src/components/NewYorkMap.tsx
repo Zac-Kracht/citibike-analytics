@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import Map, { Source, Layer, NavigationControl, GeolocateControl } from 'react-map-gl/maplibre';
 import type { MapRef } from 'react-map-gl/maplibre';
 import type { Station, HoverInfo } from '../types';
@@ -13,7 +13,7 @@ import LocationWarning from './LocationWarning';
 
 
 export default function NewYorkMap() {
-    const { geoJsonData, isLoading, error, refetch } = useStations();
+    const { stations, geoJsonData, isLoading, error, refetch } = useStations();
     const [selectedStation, setSelectedStation] = useState<Station | null>(null);
     const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
     const [locationWarning, setLocationWarning] = useState<string | null>(null);
@@ -23,12 +23,27 @@ export default function NewYorkMap() {
 
     const mapStyleUrl = `https://api.maptiler.com/maps/streets-v2/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`;
 
+    /** For auto refresh, make sure the selected station is still selected */
+    useEffect(() => {
+        if (selectedStation && stations.length > 0) {
+            // Find the updated version of the currently selected station
+            const updatedStation = stations.find(s => s.stationId === selectedStation.stationId);
+
+            if (updatedStation && (
+                updatedStation.bikesAvailable !== selectedStation.bikesAvailable ||
+                updatedStation.ebikesAvailable !== selectedStation.ebikesAvailable
+            )) {
+                setSelectedStation(updatedStation);
+            }
+        }
+    }, [stations, selectedStation]);
+
     const onMapClick = useCallback((event: any) => {
         const feature = event.features?.[0];
         if (feature) {
             const station = feature.properties as Station;
             setSelectedStation(station);
-            
+
             // Smoothly animate the map to center on the clicked station
             mapRef.current?.flyTo({
                 center: [station.longitude, station.latitude],
@@ -98,10 +113,10 @@ export default function NewYorkMap() {
         const userLng = event.coords.longitude;
         const userLat = event.coords.latitude;
 
-        const isOutOfBounds = 
-            userLng < NYC_BOUNDS.sw.lng || 
-            userLng > NYC_BOUNDS.ne.lng || 
-            userLat < NYC_BOUNDS.sw.lat || 
+        const isOutOfBounds =
+            userLng < NYC_BOUNDS.sw.lng ||
+            userLng > NYC_BOUNDS.ne.lng ||
+            userLat < NYC_BOUNDS.sw.lat ||
             userLat > NYC_BOUNDS.ne.lat;
 
         if (isOutOfBounds) {
@@ -113,11 +128,11 @@ export default function NewYorkMap() {
     return (
         <div className="w-full h-full relative flex overflow-hidden">
             <div className="flex-1 relative">
-                {isLoading && <DataLoading/>}
+                {isLoading && <DataLoading />}
                 {error && <MapErrorBanner message={error} onRetry={refetch} />}
                 {hoverInfo && <HoverSummary info={hoverInfo} />}
                 {locationWarning && <LocationWarning message={locationWarning} onExitButtonClick={() => setLocationWarning(null)} />}
-            
+
                 <Map
                     ref={mapRef}
                     initialViewState={{
@@ -131,21 +146,21 @@ export default function NewYorkMap() {
                     style={{ width: '100%', height: '100%' }}
                     interactiveLayerIds={['stations-layer']}
                     onClick={onMapClick}
-                    onMouseMove={onMouseMove} 
-                    onMouseLeave={onMouseLeave} 
+                    onMouseMove={onMouseMove}
+                    onMouseLeave={onMouseLeave}
                     cursor={hoverInfo ? "pointer" : "grab"}
                     minZoom={10}
                     maxBounds={MAX_BOUNDS_ARRAY}
                 >
                     <NavigationControl position="bottom-right" showCompass={false} />
 
-                    <GeolocateControl 
-                        position="bottom-right" 
+                    <GeolocateControl
+                        position="bottom-right"
                         trackUserLocation={true}
-                        showUserHeading={true} 
+                        showUserHeading={true}
                         onGeolocate={handleGeolocate}
                     />
-            
+
                     <Source id="stations" type="geojson" data={geoJsonData}>
                         <Layer {...stationsLayer} />
                     </Source>
@@ -154,11 +169,11 @@ export default function NewYorkMap() {
 
             {selectedStation && (
                 <StationSummaryPanel
-                    station={selectedStation} 
-                    onClose={() => setSelectedStation(null)} 
+                    station={selectedStation}
+                    onClose={() => setSelectedStation(null)}
                 />
             )}
-            
+
         </div>
     );
 }

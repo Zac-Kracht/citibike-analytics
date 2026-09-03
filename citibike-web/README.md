@@ -13,12 +13,9 @@ When a pin is clicked on the map zooms to show the pin + the top 5 destination p
 Toggleable heatmap overlay on map
 
 # TODO Phase 1
-Live refresh
-Dev vs Prod API
-Infra (& secrets)
-REPO CLEANUP/BEST PRACTICES
-Code formatting (spacing)
-Tests
+Testing CI/CD Pipeline
+Properties/Secrets
+REPO CLEANUP/BEST PRACTICES/COMMENTS
 
 # TODO Phase 2
 Heatmap
@@ -27,3 +24,4 @@ Show top 5 destinations on selected station
 Daily average use graph
 Tab icon
 Mobile view
+Prod infra (S, cloudFront, R53)
