@@ -68,9 +68,9 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
     "dev": EnvironmentConfig(
         env_name="dev",
         removal_policy="DESTROY",
-        logs_retention_days="ONE_WEEK",
+        logs_retention_days="THREE_DAYS",
         s3_config = S3Config(
-            auto_delete_objects=True,
+            auto_delete_objects=False,
             lifecycle_rules=[
                 LifecycleRuleConfig(
                     id="DevBronzeData",

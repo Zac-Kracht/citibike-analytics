@@ -17,6 +17,7 @@ REMOVAL_POLICY_MAP = {
 }
 
 LOG_RETENTION_DAYS_MAP = {
+    "THREE_DAYS": logs.RetentionDays.THREE_DAYS,
     "ONE_WEEK": logs.RetentionDays.ONE_WEEK,
     "ONE_MONTH": logs.RetentionDays.ONE_MONTH,
     "ONE_YEAR": logs.RetentionDays.ONE_YEAR

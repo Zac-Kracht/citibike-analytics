@@ -18,6 +18,13 @@ aws login
 npx cdk deploy -c env=dev
 npx cdk destroy -c env=dev
 
+for docker error:
+sudo usermod -aG docker $USER
+newgrp docker
+
+for loggroup error:
+aws logs delete-log-group --log-group-name /aws/lambda/citibike-ingestion-lambda-dev
+
 # Local run/test API
 ./mvnw clean compile
 ./mvnw spring-boot:run
@@ -95,6 +102,7 @@ npm install
 npm run dev
 
 # TODO
+disabled docks/bikes (caution icon)
 dynamoV2 migration
 Make sure S3 lifecycle rules minimize cost
 create origin secret in prod
@@ -112,5 +120,5 @@ check for cyber threats
 vulnerability management
 makefiles
 multi language support
-Show users where they can return bike if station is full
-Show users where that can get a bike if station is full
+front end accessibility
+claude skills

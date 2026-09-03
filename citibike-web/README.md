@@ -1,32 +1,27 @@
-# React + TypeScript + Vite
+# Layout
+Web page loads centered on NYC or your current location
+Pins mark the location of each station
+Pins are color coded by inventory
+When a pin is clicked on, a panel appears on the right
+The panel contains sections for:
+- Current inventory
+- Top 5 destinations
+- Average use by hour
+When a pin is clicked on the map zooms to show the pin + the top 5 destination pins
+- selected pin turns gold, destination pins turn blue
+- stretch: directions appear to each pin
+Toggleable heatmap overlay on map
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+# TODO Phase 1
+Testing CI/CD Pipeline
+Properties/Secrets
+REPO CLEANUP/BEST PRACTICES/COMMENTS
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+# TODO Phase 2
+Heatmap
+Top 5 destinations panel
+Show top 5 destinations on selected station
+Daily average use graph
+Tab icon
+Mobile view
+Prod infra (S, cloudFront, R53)

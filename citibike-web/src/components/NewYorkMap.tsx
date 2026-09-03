@@ -1,125 +1,179 @@
-import { useState } from 'react';
-import Map, { Marker, Popup, NavigationControl } from 'react-map-gl/maplibre';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import Map, { Source, Layer, NavigationControl, GeolocateControl } from 'react-map-gl/maplibre';
+import type { MapRef } from 'react-map-gl/maplibre';
+import type { Station, HoverInfo } from '../types';
+import { useStations } from '../hooks/useStations';
+import { stationsLayer } from '../config/mapLayers';
+import { NYC_BOUNDS, MAX_BOUNDS_ARRAY } from '../config/constants';
+import StationSummaryPanel from './StationSummaryPanel';
+import DataLoading from './DataLoading';
+import MapErrorBanner from './MapErrorBanner';
+import HoverSummary from './HoverSummary';
+import LocationWarning from './LocationWarning';
 
-// The exact structure returned by your DynamoDB/API backend
-interface Station {
-  stationId: string;
-  stationName: string;
-  latitude: number;
-  longitude: number;
-  bikesAvailable: number;
-  ebikesAvailable: number;
-  docksAvailable: number;
-  capacity: number;
-  isRenting: boolean;
-  isReturning: boolean;
-}
-
-// Sample stations scattered around NYC
-const SAMPLE_STATIONS: Station[] = [
-  {
-    stationId: "66dcac42-0aca-11e7-82f6-3863bb44ef7c",
-    stationName: "Kent Ave & N 7 St",
-    latitude: 40.72036775298455,
-    longitude: -73.96165072917938,
-    bikesAvailable: 73,
-    ebikesAvailable: 14,
-    docksAvailable: 2,
-    capacity: 79,
-    isRenting: true,
-    isReturning: true
-  },
-  {
-    stationId: "66db237e-0aca-11e7-82f6-3863bb44ef7c",
-    stationName: "W 21 St & 6 Ave",
-    latitude: 40.74174,
-    longitude: -73.994156,
-    bikesAvailable: 12,
-    ebikesAvailable: 5,
-    docksAvailable: 40,
-    capacity: 57,
-    isRenting: true,
-    isReturning: true
-  },
-  {
-    stationId: "66db6aae-0aca-11e7-82f6-3863bb44ef7c",
-    stationName: "Broadway & W 60 St",
-    latitude: 40.76915505,
-    longitude: -73.98191841,
-    bikesAvailable: 0,
-    ebikesAvailable: 2,
-    docksAvailable: 31,
-    capacity: 33,
-    isRenting: true,
-    isReturning: true
-  }
-];
 
 export default function NewYorkMap() {
-  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
-  const mapStyleUrl = `https://api.maptiler.com/maps/streets-v2/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`;
+    const { stations, geoJsonData, isLoading, error, refetch } = useStations();
+    const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+    const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
+    const [locationWarning, setLocationWarning] = useState<string | null>(null);
 
-  return (
-    <div className="w-full h-full relative">
-      <Map
-        initialViewState={{
-          longitude: -73.985, // Centered on Manhattan
-          latitude: 40.748,
-          zoom: 12.5,
-          pitch: 0,
-          bearing: 0
-        }}
-        mapStyle={mapStyleUrl}
-        style={{ width: '100%', height: '100%' }}
-      >
-        <NavigationControl position="bottom-right" showCompass={false} />
-        {/* Render Station Pins */}
-        {SAMPLE_STATIONS.map((station) => (
-          <Marker
-            key={station.stationId}
-            longitude={station.longitude}
-            latitude={station.latitude}
-            anchor="center"
-            onClick={(e) => {
-              // Prevent click from propagating to the map canvas
-              e.originalEvent.stopPropagation();
-              setSelectedStation(station);
-            }}
-          >
-            {/* Simple dot marker that scales on hover */}
-            <div className="w-4 h-4 bg-blue-600 border-2 border-white rounded-full shadow-md cursor-pointer hover:scale-125 transition-transform" />
-          </Marker>
-        ))}
+    const mapRef = useRef<MapRef>(null);
+    const hoveredFeatureId = useRef<string | null>(null);
 
-        {/* Render Popup if a station is clicked */}
-        {selectedStation && (
-          <Popup
-            longitude={selectedStation.longitude}
-            latitude={selectedStation.latitude}
-            anchor="bottom"
-            offset={12} // Offset to not cover the pin
-            onClose={() => setSelectedStation(null)}
-            closeOnClick={false}
-            className="z-50"
-          >
-            <div className="p-1 text-gray-800 min-w-[200px]">
-              <h3 className="font-bold text-md mb-2 leading-tight">{selectedStation.stationName}</h3>
-              <div className="flex justify-between text-sm">
-                <span>Classic:</span>
-                <span className="font-semibold">{selectedStation.bikesAvailable}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>E-Bikes:</span>
-                <span className="font-semibold">{selectedStation.ebikesAvailable}</span>
-              </div>
-              <div className="flex justify-between text-sm text-gray-500 mt-1 pt-1 border-t">
-                <span>Open Docks:</span>
-                <span className="font-semibold">{selectedStation.docksAvailable}</span>
-              </div>
+    const mapStyleUrl = `https://api.maptiler.com/maps/streets-v2/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`;
+
+    /** For auto refresh, make sure the selected station is still selected */
+    useEffect(() => {
+        if (selectedStation && stations.length > 0) {
+            // Find the updated version of the currently selected station
+            const updatedStation = stations.find(s => s.stationId === selectedStation.stationId);
+
+            if (updatedStation && (
+                updatedStation.bikesAvailable !== selectedStation.bikesAvailable ||
+                updatedStation.ebikesAvailable !== selectedStation.ebikesAvailable
+            )) {
+                setSelectedStation(updatedStation);
+            }
+        }
+    }, [stations, selectedStation]);
+
+    const onMapClick = useCallback((event: any) => {
+        const feature = event.features?.[0];
+        if (feature) {
+            const station = feature.properties as Station;
+            setSelectedStation(station);
+
+            // Smoothly animate the map to center on the clicked station
+            mapRef.current?.flyTo({
+                center: [station.longitude, station.latitude],
+                zoom: 15,
+                duration: 1200 // 1.2 second animation
+            });
+        } else {
+            setSelectedStation(null);
+        }
+    }, []);
+
+    const onMouseMove = useCallback((event: any) => {
+        const feature = event.features?.[0];
+        const map = mapRef.current?.getMap();
+
+        if (feature && map) {
+            const currentStationId = feature.id;
+
+            // If we moved to a new station, clear the hover state of the old one
+            if (hoveredFeatureId.current !== null && hoveredFeatureId.current !== currentStationId) {
+                map.setFeatureState(
+                    { source: 'stations', id: hoveredFeatureId.current },
+                    { hover: false }
+                );
+            }
+
+            // Set the hover state for the new station
+            hoveredFeatureId.current = currentStationId;
+            map.setFeatureState(
+                { source: 'stations', id: currentStationId },
+                { hover: true }
+            );
+
+            // Update React tooltip state
+            setHoverInfo({
+                x: event.point.x,
+                y: event.point.y,
+                name: feature.properties.stationName,
+                bikes: feature.properties.bikesAvailable + feature.properties.ebikesAvailable,
+            });
+        } else {
+            // If the mouse is not over a station, clear everything
+            if (hoveredFeatureId.current !== null && map) {
+                map.setFeatureState(
+                    { source: 'stations', id: hoveredFeatureId.current },
+                    { hover: false }
+                );
+                hoveredFeatureId.current = null;
+            }
+            setHoverInfo(null);
+        }
+    }, []);
+
+    const onMouseLeave = useCallback(() => {
+        const map = mapRef.current?.getMap();
+        if (hoveredFeatureId.current !== null && map) {
+            map.setFeatureState(
+                { source: 'stations', id: hoveredFeatureId.current },
+                { hover: false }
+            );
+            hoveredFeatureId.current = null;
+        }
+        setHoverInfo(null);
+    }, []);
+
+    const handleGeolocate = useCallback((event: any) => {
+        const userLng = event.coords.longitude;
+        const userLat = event.coords.latitude;
+
+        const isOutOfBounds =
+            userLng < NYC_BOUNDS.sw.lng ||
+            userLng > NYC_BOUNDS.ne.lng ||
+            userLat < NYC_BOUNDS.sw.lat ||
+            userLat > NYC_BOUNDS.ne.lat;
+
+        if (isOutOfBounds) {
+            setLocationWarning("You appear to be outside the Citi Bike service area.");
+            setTimeout(() => setLocationWarning(null), 5000);
+        }
+    }, []);
+
+    return (
+        <div className="w-full h-full relative flex overflow-hidden">
+            <div className="flex-1 relative">
+                {isLoading && <DataLoading />}
+                {error && <MapErrorBanner message={error} onRetry={refetch} />}
+                {hoverInfo && <HoverSummary info={hoverInfo} />}
+                {locationWarning && <LocationWarning message={locationWarning} onExitButtonClick={() => setLocationWarning(null)} />}
+
+                <Map
+                    ref={mapRef}
+                    initialViewState={{
+                        longitude: -73.985,
+                        latitude: 40.748,
+                        zoom: 11.5,
+                        pitch: 0,
+                        bearing: 0
+                    }}
+                    mapStyle={mapStyleUrl}
+                    style={{ width: '100%', height: '100%' }}
+                    interactiveLayerIds={['stations-layer']}
+                    onClick={onMapClick}
+                    onMouseMove={onMouseMove}
+                    onMouseLeave={onMouseLeave}
+                    cursor={hoverInfo ? "pointer" : "grab"}
+                    minZoom={10}
+                    maxBounds={MAX_BOUNDS_ARRAY}
+                >
+                    <NavigationControl position="bottom-right" showCompass={false} />
+
+                    <GeolocateControl
+                        position="bottom-right"
+                        trackUserLocation={true}
+                        showUserHeading={true}
+                        onGeolocate={handleGeolocate}
+                    />
+
+                    <Source id="stations" type="geojson" data={geoJsonData}>
+                        <Layer {...stationsLayer} />
+                    </Source>
+                </Map>
             </div>
-          </Popup>
-        )}
-      </Map>
-    </div>
-  );
+
+            {selectedStation && (
+                <StationSummaryPanel
+                    station={selectedStation}
+                    onClose={() => setSelectedStation(null)}
+                />
+            )}
+
+        </div>
+    );
 }
