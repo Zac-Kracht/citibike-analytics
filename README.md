@@ -103,14 +103,12 @@ npm run dev
 
 # TODO
 disabled docks/bikes (caution icon)
+Legend?
 dynamoV2 migration
 Make sure S3 lifecycle rules minimize cost
 create origin secret in prod
 linter
-unit test
-integration test
 prod stack
-github actions/CICD
 claude file?
 documentations/readme's
 code comments
