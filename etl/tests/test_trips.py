@@ -1,4 +1,3 @@
-from pyspark.sql.types import StructType, StructField, StringType
 from chispa.dataframe_comparer import assert_df_equality
 from src.citibike_etl.transformations.trips import transform_trips_bronze_to_silver
 
