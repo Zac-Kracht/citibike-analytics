@@ -7,7 +7,7 @@ from src.citibike_etl.utils.logging import get_logger
 logger = get_logger(__name__)
 
 def transform_trips_bronze_to_silver(trips_df: DataFrame) -> DataFrame:
-    """"""
+    """Transform bronze historical trips csv data to silver layer"""
     # Remove nulls from non-nullable fields
     trips_df = trips_df.dropna(
         subset=[

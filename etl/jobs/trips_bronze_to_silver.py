@@ -33,6 +33,7 @@ def _get_optional_arg(arg_name: str, default_value=None):
     return default_value
 
 def _get_data_source():
+    """Get source data as a DynamicFrame. Use optional arg RERUN_PATH to ingest specific partition, else all new files will be processed."""
     bronze_s3_path = _get_optional_arg("RERUN_PATH", f"s3://{DATA_LAKE_BUCKET}/bronze/trips/") # ex. bronze/trips/year=2026/month=08/
 
     return glueContext.create_dynamic_frame.from_options(
