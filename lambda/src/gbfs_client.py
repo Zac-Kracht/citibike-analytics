@@ -2,6 +2,7 @@ import json
 import logging
 import urllib.request
 from typing import Any, Final
+from urllib.error import HTTPError, URLError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -32,10 +33,10 @@ class GBFSClient:
                 else:
                     logger.error(f"Unexpected HTTP status from url {url}: {response.status}")
                     raise RuntimeError(f"Response from {url} returned unexpected status: {response.status}")
-        except urllib.error.HTTPError as e:
+        except HTTPError as e:
             logger.error(f"HTTP Error from url {url} {e.code}: {e.reason}")
             raise
-        except urllib.error.URLError as e:
+        except URLError as e:
             logger.error(f"URL Error: {e.reason}")
             raise
         except json.JSONDecodeError as e:
