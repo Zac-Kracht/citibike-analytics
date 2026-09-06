@@ -1,5 +1,4 @@
 import sys
-import logging
 
 from awsglue.utils import getResolvedOptions
 from awsglue.context import GlueContext
@@ -8,14 +7,9 @@ from pyspark.context import SparkContext
 from pyspark.sql.functions import explode, col, timestamp_seconds, year, month
 from pyspark.sql.types import StringType, DoubleType, IntegerType
 
+from src.citibike_etl.utils.logging import get_logger
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-if not logger.handlers:
-    handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] %(message)s")
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+logger = get_logger("gbfs_bronze_to_silver_etl")
 
 args = getResolvedOptions(sys.argv, ["JOB_NAME", "DATA_LAKE_BUCKET", "DATA_TO_PROCESS", "ENV_NAME"])
 

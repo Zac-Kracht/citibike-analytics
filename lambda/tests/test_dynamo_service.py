@@ -151,3 +151,4 @@ class TestDynamoDBService:
         errors = subject.update_station_info(stations, updated_at_ts=1234567890)
         
         assert errors == 1
+        

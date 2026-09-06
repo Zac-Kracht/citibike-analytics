@@ -3,7 +3,7 @@ name = "citibike-analytics-etl-pipeline"
 version = "0.1.0"
 description = "PySpark Glue transformations for Citi Bike Analytics data lake"
 authors = ["Zac Kracht <zac.kracht.dev@gmail.com>"]
-packages = [{ include = "src" }]
+packages = [{ include = "citibike_etl", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.10"

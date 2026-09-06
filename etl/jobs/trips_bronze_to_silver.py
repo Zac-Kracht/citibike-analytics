@@ -1,24 +1,14 @@
 import sys
-import logging
 
 from awsglue.utils import getResolvedOptions
 from awsglue.context import GlueContext
 from awsglue.job import Job
 from pyspark.context import SparkContext
-from pyspark.sql.functions import (
-    to_timestamp, col, unix_timestamp, 
-    year, month
-)
-from pyspark.sql.types import DoubleType
 
+from src.citibike_etl.transformations.trips import transform_trips_bronze_to_silver
+from src.citibike_etl.utils.logging import get_logger
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-if not logger.handlers:
-    handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] %(message)s")
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+logger = get_logger("trips_bronze_to_silver_etl")
 
 args = getResolvedOptions(sys.argv, ["JOB_NAME", "DATA_LAKE_BUCKET", "ENV_NAME"])
 
@@ -57,67 +47,20 @@ def _get_data_source():
     )
 
 def process_monthly_trips():
-    trips_df = _get_data_source().toDF()
+    bronze_trips_df = _get_data_source().toDF()
 
-    if trips_df.rdd.isEmpty():
-        logger.error("No new trips files to process")
+    if bronze_trips_df.rdd.isEmpty():
         raise RuntimeError("No new bronze trips files to process.")
 
-    # Remove nulls from non-nullable fields
-    trips_df = trips_df.dropna(
-        subset=["ride_id", "started_at", "ended_at", "start_station_id", "end_station_id", "start_lat", "start_lng", "end_lat", "end_lng"]
-    )
+    silver_trips_df = transform_trips_bronze_to_silver(bronze_trips_df)
 
-    # Convert to correct datatypes
-    trips_df = (
-        trips_df.withColumn("started_at", to_timestamp("started_at"))
-        .withColumn("ended_at", to_timestamp("ended_at"))
-        .withColumn("start_lat", col("start_lat").cast(DoubleType()))
-        .withColumn("start_lng", col("start_lng").cast(DoubleType()))
-        .withColumn("end_lat", col("end_lat").cast(DoubleType()))
-        .withColumn("end_lng", col("end_lng").cast(DoubleType()))
-        .withColumn("duration_seconds", unix_timestamp("ended_at") - unix_timestamp("started_at"))
-    )
-
-    # Filter invalid trip durations
-    trips_df = trips_df.filter(
-        (col("duration_seconds") >= 60)
-        & (col("duration_seconds") <= 86400)
-    )
-
-    # Partition cols
-    trips_df = (
-        trips_df.withColumn("year", year("started_at"))
-        .withColumn("month", month("started_at"))
-    )
-
-    # Final columns
-    trips_df = trips_df.select(
-        "ride_id",
-        "rideable_type",
-        "started_at",
-        "ended_at",
-        "start_station_name",
-        "start_station_id",
-        "end_station_name",
-        "end_station_id",
-        "start_lat", 
-        "start_lng", 
-        "end_lat", 
-        "end_lng",
-        "member_casual",
-        "duration_seconds",
-        "year",
-        "month"
-    )
-
-    trips_df.cache()
-    count = trips_df.count()
+    silver_trips_df.cache()
+    count = silver_trips_df.count()
     logger.info(f"Writing {count} rows for trips to {SILVER_TRIPS_S3_PATH}")
-    trips_df.show(n=10, truncate=False)
+    silver_trips_df.show(n=10, truncate=False)
     logger.info(f"Writing silver parquet to: {SILVER_TRIPS_S3_PATH}")
 
-    trips_df.write.mode("append").partitionBy("year", "month").parquet(SILVER_TRIPS_S3_PATH)
+    silver_trips_df.write.mode("append").partitionBy("year", "month").parquet(SILVER_TRIPS_S3_PATH)
     logger.info("Successfully wrote trips data to S3.")
 
 
