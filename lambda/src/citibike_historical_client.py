@@ -1,11 +1,12 @@
-import logging
 import io
+import logging
 import urllib.request
 import zipfile
-
 from typing import Any
-from src.s3_service import S3Service
 
+from botocore.exceptions import BotoCoreError, ClientError
+
+from src.s3_service import S3Service
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -22,12 +23,13 @@ class CitiBikeHistoricalClient:
 
             with urllib.request.urlopen(req, timeout=10) as response:
                 return io.BytesIO(response.read())
-        except Exception as e:
+        except (urllib.error.URLError, TimeoutError):
             # Try next file name on extract failure
             logger.info(f"Failed to extract zip from tripdata url: {url}")
             return None
 
     def write_csvs_to_s3(self, zip_buffer: Any, s3_prefix: str):
+        """ Write CSV files to S3, returns the number of successful files written. """
         try:
             with zipfile.ZipFile(zip_buffer) as z:
                 count = 0
@@ -40,7 +42,7 @@ class CitiBikeHistoricalClient:
                         count += 1
             logger.info(f"Extracted {count} files to S3 prefix {s3_prefix}")
             return count
-        except Exception as e:
+        except (zipfile.BadZipFile, zipfile.LargeZipFile, BotoCoreError, ClientError):
             logger.info("CSV file extraction to S3 failed")
             return 0
             

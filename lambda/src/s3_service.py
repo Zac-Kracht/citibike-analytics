@@ -1,8 +1,8 @@
 import json
 import logging
+from typing import Any
 
 from botocore.exceptions import ClientError
-from typing import Any
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -24,7 +24,7 @@ class S3Service:
             logger.info("File successfully uploaded")
         except ClientError as e:
             logger.error(f"Failed to write file to S3 key {s3_key}: {e}")
-            raise e
+            raise
 
     def write_csv_file_object(self, csv_file: Any, s3_key: str):
         logger.info(f"Attempting S3 csv file upload at {s3_key}")
@@ -37,7 +37,7 @@ class S3Service:
             logger.info("File successfully uploaded")
         except Exception as e:
             logger.error(f"Failed to write file to S3 key {s3_key}: {e}")
-            raise e
+            raise
 
     def write_success_file(self, prefix: str):
         s3_key = f"{prefix}/_SUCCESS"
@@ -53,5 +53,5 @@ class S3Service:
             )
         except ClientError as e:
             logger.error(f"Failed to write _SUCCESS file to S3 key {s3_key}: {e}")
-            raise e
+            raise
             

@@ -1,5 +1,6 @@
 import os
 
+
 class Config:
     DATA_LAKE_BUCKET_NAME: str = os.environ["DATA_LAKE_BUCKET_NAME"]
     DYNAMODB_TABLE_NAME: str = os.environ["DYNAMODB_TABLE_NAME"]

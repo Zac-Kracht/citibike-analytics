@@ -1,8 +1,10 @@
-import pytest
 import json
-import urllib.error
+
+import pytest
 from pytest_mock import MockerFixture
+
 from src.gbfs_client import GBFSClient
+
 
 class TestGBFSClient:
 
@@ -40,8 +42,18 @@ class TestGBFSClient:
         assert result == {"status": "success"}
         mock_urlopen.assert_called_once()
 
-    def test_make_gbfs_request_unexpected_http_status(self):
-        pass
+    def test_make_gbfs_request_unexpected_http_status(self, mocker: MockerFixture, subject):
+        """Test GBFS data retrieval throws RuntimeError on 4xx response"""
+        mock_urlopen = mocker.patch("urllib.request.urlopen")
+        mock_response = mocker.MagicMock()
+        mock_response.status = 404
+        mock_response.__enter__.return_value = mock_response 
+        mock_urlopen.return_value = mock_response
+
+        with pytest.raises(RuntimeError, match="returned unexpected status"):
+            subject._make_gbfs_request("http://mock-url.com/test.json")
+
+        mock_urlopen.assert_called_once()
 
     def test_make_gbfs_request_http_exception(self):
         pass

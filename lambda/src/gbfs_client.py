@@ -1,8 +1,7 @@
 import json
-import urllib.request
 import logging
-
-from typing import Final, Dict, Any
+import urllib.request
+from typing import Any, Final
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -18,7 +17,7 @@ class GBFSClient:
         self.feed_data = None
 
     def _make_gbfs_request(self, url: str):
-        logging.info(f"Making request to url: {url}")
+        logger.info(f"Making request to url: {url}")
         req = urllib.request.Request(
             url,
             headers = {
@@ -35,17 +34,17 @@ class GBFSClient:
                     raise RuntimeError(f"Response from {url} returned unexpected status: {response.status}")
         except urllib.error.HTTPError as e:
             logger.error(f"HTTP Error from url {url} {e.code}: {e.reason}")
-            raise e
+            raise
         except urllib.error.URLError as e:
             logger.error(f"URL Error: {e.reason}")
-            raise e
+            raise
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON from url {url}: {e}")
-            raise e
+            raise
 
     def _get_gbfs_feed(self, key: str):
         if not self.feed_data:
-            logging.info("Initializing GBFS feed data...")
+            logger.info("Initializing GBFS feed data...")
             discovery_json = self._make_gbfs_request(self.discovery_url)
             discovery_languages = discovery_json.get("data", {})
             discovery_feeds = discovery_languages.get(self.language_code, {}).get("feeds", [])
@@ -53,7 +52,7 @@ class GBFSClient:
             self.feed_data = {}
             for feed in discovery_feeds:
                 self.feed_data[feed["name"]] = feed["url"]
-            logging.info("GBFS feed data initialized")
+            logger.info("GBFS feed data initialized")
 
         if key in self.feed_data:
             return self.feed_data[key]
@@ -62,10 +61,10 @@ class GBFSClient:
             raise RuntimeError(f"Key {key} not found in GBFS feed data")
 
 
-    def fetch_station_info(self) -> Dict[str, Any]:
+    def fetch_station_info(self) -> dict[str, Any]:
         url = self._get_gbfs_feed(self.GBFS_KEY_STATION_INFORMATION)
         return self._make_gbfs_request(url)
 
-    def fetch_station_status(self) -> Dict[str, Any]:
+    def fetch_station_status(self) -> dict[str, Any]:
         url = self._get_gbfs_feed(self.GBFS_KEY_STATION_STATUS)
         return self._make_gbfs_request(url)

@@ -1,18 +1,18 @@
 import logging
-
-from typing import Any, Dict
-from botocore.exceptions import ClientError
 from decimal import Decimal, InvalidOperation
+from typing import Any
+
+from botocore.exceptions import ClientError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-class DynamoDBService():
+class DynamoDBService:
     def __init__(self, dynamodb_client: Any, table_name: str):
         self.table = dynamodb_client.Table(table_name)
 
-    def update_station_status(self, stations: list[Dict[str, Any]], updated_at_ts: int) -> int:
+    def update_station_status(self, stations: list[dict[str, Any]], updated_at_ts: int) -> int:
         logger.info(f"Updating DynamoDB table with station status for {len(stations)} stations")
         error_count = 0
         for station in stations:
@@ -45,14 +45,14 @@ class DynamoDBService():
             except ClientError as e:
                 logger.error(f"Error updating status for station {station_id}: {e.response['Error']['Message']}")
                 error_count += 1
-            except Exception as e:
-                logger.error(f"Unexpected exception updating status for station {station_id}: {str(e)}", exc_info=True)
+            except Exception:
+                logger.exception(f"Unexpected exception updating status for station {station_id}")
                 error_count += 1
 
         logger.info(f"Successfully updated status for {len(stations)-error_count} stations in DynamoDB. Error count: {error_count}")
         return error_count
 
-    def update_station_info(self, stations: list[Dict[str, Any]], updated_at_ts: int) -> int:
+    def update_station_info(self, stations: list[dict[str, Any]], updated_at_ts: int) -> int:
         logger.info(f"Updating DynamoDB table with station info for {len(stations)} stations")
         error_count = 0
         for station in stations:
@@ -86,8 +86,8 @@ class DynamoDBService():
             except ClientError as e:
                 logger.error(f"Error updating info for station {station_id}: {e.response['Error']['Message']}")
                 error_count += 1
-            except Exception as e:
-                logger.error(f"Unexpected exception updating info for station {station_id}: {str(e)}", exc_info=True)
+            except Exception:
+                logger.exception(f"Unexpected exception updating info for station {station_id}")
                 error_count += 1
 
         logger.info(f"Successfully updated info for {len(stations)-error_count}/{len(stations)} stations in DynamoDB. Error count: {error_count}")
