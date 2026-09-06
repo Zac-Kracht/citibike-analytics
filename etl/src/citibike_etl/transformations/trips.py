@@ -2,7 +2,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, month, to_timestamp, unix_timestamp, year
 from pyspark.sql.types import DoubleType
 
-from utils.logging import get_logger
+from src.citibike_etl.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
