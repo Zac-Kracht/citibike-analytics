@@ -81,7 +81,7 @@ class TestDynamoDBService:
         response = table.get_item(Key={"station_id": "1"})
         item = response.get("Item", {})
         
-        assert item["num_bikes_available"] == Decimal(10)
+        assert item["num_bikes_available"] == Decimal(8)
         assert item["num_ebikes_available"] == Decimal(2)
         assert item["is_installed"] is True
         assert item["status_last_updated"] == Decimal(1234567890)
@@ -92,14 +92,13 @@ class TestDynamoDBService:
         
         errors = subject.update_station_status(stations, updated_at_ts=1234567890)
         
-        assert errors == 0
+        assert errors == 1
 
     def test_update_station_status_client_error(self, mocker: MockerFixture, subject: DynamoDBService):
         """Test status update catches ClientError and increments error count"""
         stations = [{"station_id": "1"}]
         error_response = {"Error": {"Message": "Provisioned throughput exceeded", "Code": "ProvisionedThroughputExceededException"}}
         
-        # Patch the table object created inside the subject's __init__
         mocker.patch.object(subject.table, "update_item", side_effect=ClientError(error_response, "UpdateItem"))
         
         errors = subject.update_station_status(stations, updated_at_ts=1234567890)
@@ -131,7 +130,6 @@ class TestDynamoDBService:
         
         assert errors == 0
         
-        # Verify the data was written correctly, handling floats via the _to_float method
         table = dynamodb_resource.Table(test_table)
         response = table.get_item(Key={"station_id": "1"})
         item = response.get("Item", {})

@@ -29,7 +29,7 @@ class TestGBFSClient:
             }
         }
 
-    def test_make_gbfs_request_success_response(self, mocker: MockerFixture, subject: GBFSClient):
+    def test_make_gbfs_request_happy_path(self, mocker: MockerFixture, subject: GBFSClient):
         """Test GBFS data retrieval on 200 response"""
         mock_urlopen = mocker.patch("urllib.request.urlopen")
         mock_response = mocker.MagicMock()

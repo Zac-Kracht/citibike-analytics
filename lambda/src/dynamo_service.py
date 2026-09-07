@@ -18,6 +18,8 @@ class DynamoDBService:
         for station in stations:
             station_id = str(station.get("station_id"))
             if not station_id:
+                logger.info("Skipping station with null station_id")
+                error_count += 1
                 continue
 
             try:
@@ -33,12 +35,13 @@ class DynamoDBService:
                             status_last_updated = :updated_at
                     """,
                     ExpressionAttributeValues={
-                        ":bikes": station.get("num_bikes_available", 0),
-                        ":ebikes": station.get("num_ebikes_available", 0),
-                        ":docks": station.get("num_docks_available", 0),
-                        ":installed": bool(station.get("is_installed", 1)),
-                        ":renting": bool(station.get("is_renting", 1)),
-                        ":returning": bool(station.get("is_returning", 1)),
+                        # GBFS num_bikes_available = ebikes + classic bikes. Our DB should use classic bikes as num_bikes_available.
+                        ":bikes": station.get("num_bikes_available") - station.get("num_ebikes_available"),
+                        ":ebikes": station.get("num_ebikes_available"),
+                        ":docks": station.get("num_docks_available"),
+                        ":installed": bool(station.get("is_installed")),
+                        ":renting": bool(station.get("is_renting")),
+                        ":returning": bool(station.get("is_returning")),
                         ":updated_at": updated_at_ts
                     }
                 )
@@ -58,6 +61,8 @@ class DynamoDBService:
         for station in stations:
             station_id = str(station.get("station_id"))
             if not station_id:
+                logger.info("Skipping station with null station_id")
+                error_count += 1
                 continue
 
             try:
@@ -75,11 +80,11 @@ class DynamoDBService:
                         "#capacity": "capacity"  # 'capacity' is a reserved keyword in DynamoDB
                     },
                     ExpressionAttributeValues={
-                        ":station_name": station.get("name", ""),
-                        ":short_name": station.get("short_name", ""),
+                        ":station_name": station.get("name"),
+                        ":short_name": station.get("short_name"),
                         ":lat": self._to_float(station.get("lat")),
                         ":lon": self._to_float(station.get("lon")),
-                        ":capacity": station.get("capacity", 0),
+                        ":capacity": station.get("capacity"),
                         ":updated_at": updated_at_ts
                     }
                 )
@@ -95,7 +100,6 @@ class DynamoDBService:
 
     def _to_float(self, val):
         try:
-            # Boto3 requires Decimal for floating point numbers
             return Decimal(str(val)) if val is not None else None
         except (ValueError, TypeError, InvalidOperation):
             return None
