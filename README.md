@@ -115,7 +115,7 @@ code comments
 alerts about failed jobs
 alarms
 check for cyber threats
-vulnerability management
+vulnerability management/scanning
 makefiles
 multi language support
 front end accessibility

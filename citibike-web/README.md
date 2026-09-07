@@ -13,7 +13,8 @@ When a pin is clicked on the map zooms to show the pin + the top 5 destination p
 Toggleable heatmap overlay on map
 
 # TODO Phase 1
-Testing CI/CD Pipeline
+Verify bike count behavior
+Fix location warning
 Properties/Secrets
 REPO CLEANUP/BEST PRACTICES/COMMENTS
 

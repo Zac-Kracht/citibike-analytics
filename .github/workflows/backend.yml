@@ -34,8 +34,12 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
+      - name: Run Checkstyle Linter
+        run: mvn checkstyle:check
+        working-directory: ./api
+
       - name: Run Spring Boot Tests
-        run: mvn test
+        run: mvn clean verify
         working-directory: ./api
 
   test-lambdas:
