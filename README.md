@@ -98,7 +98,7 @@ docker push <YOUR_ACCOUNT_ID>.dkr.ecr.<YOUR_REGION>.amazonaws.com/citibike-backe
 # Run frontend
 nvm use 22
 nvm alias default 22
-npm install
+npm install (or npm install --legacy-peer-deps)
 npm run dev
 
 # TODO
@@ -120,3 +120,4 @@ makefiles
 multi language support
 front end accessibility
 claude skills
+Buy domain

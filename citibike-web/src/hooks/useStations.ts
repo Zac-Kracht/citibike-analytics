@@ -31,7 +31,7 @@ export function useStations() {
 
     useEffect(() => {
         fetchStations();
-    }, []);
+    }, [fetchStations]);
 
     useEffect(() => {
         const intervalId = setInterval(() => {

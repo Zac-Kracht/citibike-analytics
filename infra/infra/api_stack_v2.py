@@ -1,13 +1,17 @@
+'''
+V2 API infra using API Gateway + AWS Lambda w/ SnapStart to reduce Java cold start times
+'''
 from aws_cdk import (
     Stack,
     Duration,
-    aws_ecs as ecs,
+    CfnOutput,
+    aws_lambda as lambda_,
     aws_ec2 as ec2,
-    aws_ecs_patterns as ecs_patterns,
-    aws_ecr as ecr,
-    aws_wafv2 as wafv2,
     aws_dynamodb as dynamodb,
-    aws_logs as logs
+    aws_logs as logs,
+    aws_apigatewayv2 as apigwv2,
+    aws_apigatewayv2_integrations as integrations,
+    aws_wafv2 as wafv2
 )
 from constructs import Construct
 from infra.config import EnvironmentConfig
@@ -15,10 +19,8 @@ from infra.constants import (
     REMOVAL_POLICY_MAP,
     LOG_RETENTION_DAYS_MAP
 )
-import os
 
-
-class APIStack(Stack):
+class APIStackV2(Stack):
 
     def __init__(
         self,
@@ -31,95 +33,76 @@ class APIStack(Stack):
         ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        self.cluster = ecs.Cluster(
-            self, f"ECSCluster",
-            cluster_name=f"citibike-ecs-cluster-{config.env_name}",
-            vpc=vpc
-        )
-
         self.api_log_group = logs.LogGroup(
-            self, f"ECSLogGroup",
-            log_group_name=f"/ecs/citibike-api-{config.env_name}",
+            self, "LambdaAPILogGroup",
+            log_group_name=f"/aws/lambda/citibike-api-{config.env_name}",
             retention=LOG_RETENTION_DAYS_MAP[config.logs_retention_days],
             removal_policy=REMOVAL_POLICY_MAP[config.removal_policy]
         )
 
-        if config.env_name == "prod":
-            ecr_repo = ecr.Repository.from_repository_name(self, "ApiEcrRepo", "citibike-backend-api")
-            self.image = ecs.ContainerImage.from_ecr_repository(ecr_repo, tag=os.getenv("IMAGE_TAG", "latest"))
-        else:
-            self.image = ecs.ContainerImage.from_asset("../api")
+        self.lambda_security_group = ec2.SecurityGroup(
+            self, "LambdaSecurityGroup",
+            vpc=vpc,
+            description="Security Group for CitiBike Lambda API",
+            allow_all_outbound=True
+        )
 
-        self.fargate_service = ecs_patterns.ApplicationLoadBalancedFargateService(
-            self, f"FargateService",
-            cluster=self.cluster,
-            service_name=f"citibike-api-service-{config.env_name}",
-            cpu=config.fargate_config.cpu,
-            memory_limit_mib=config.fargate_config.memory_limit_mib,
-            desired_count=config.fargate_config.desired_count,
-            assign_public_ip=False,
-            public_load_balancer=config.api_config.public_alb,
-            task_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
-            task_image_options=ecs_patterns.ApplicationLoadBalancedTaskImageOptions(
-                image=self.image,
-                container_port=8080,
-                log_driver=ecs.LogDriver.aws_logs(
-                    stream_prefix="citibike-api",
-                    log_group=self.api_log_group
-                ),
-                environment={
-                    "SPRING_PROFILES_ACTIVE": config.env_name,
-                    "DYNAMODB_TABLE_NAME": live_station_table.table_name,
-                    "AWS_REGION": self.region,
-                    "DYNAMO_TABLE_POLL_RATE": str(config.api_config.dynamo_poll_rate_ms)
-                }
+        self.lambda_fn = lambda_.Function(
+            self, "CitibikeApiLambda",
+            function_name=f"citibike-api-lambda-{config.env_name}",
+            runtime=lambda_.Runtime.JAVA_21,
+            code=lambda_.Code.from_asset("../api/target/api-0.0.1-SNAPSHOT.jar"), 
+            handler="com.citibike.api.StreamLambdaHandler::handleRequest", 
+            memory_size=2048, 
+            timeout=Duration.seconds(30),
+            vpc=vpc,
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
+            security_groups=[self.lambda_security_group],
+            log_group=self.api_log_group,
+            # Enable SnapStart for published versions to eliminate cold starts
+            snap_start=lambda_.SnapStartConf.ON_PUBLISHED_VERSIONS,
+            environment={
+                "SPRING_PROFILES_ACTIVE": config.env_name,
+                "DYNAMODB_TABLE_NAME": live_station_table.table_name,
+                "DYNAMO_TABLE_POLL_RATE": str(config.api_config.dynamo_poll_rate_ms)
+            }
+        )
+
+        live_station_table.grant_read_data(self.lambda_fn)
+
+        self.lambda_version = lambda_.Version(self, "LambdaVersion", lambda_=self.lambda_fn)
+        self.lambda_alias = lambda_.Alias(
+            self, "LambdaLiveAlias",
+            alias_name="live",
+            version=self.lambda_version
+        )
+
+        self.http_api = apigwv2.HttpApi(
+            self, "CitibikeHttpApi",
+            api_name=f"citibike-api-{config.env_name}",
+            cors_preflight=apigwv2.CorsPreflightOptions(
+                allow_origins=config.api_config.allowed_origins,
+                allow_methods=[apigwv2.CorsHttpMethod.GET],
+                allow_headers=["Authorization", "Content-Type", "X-Origin-Verify"]
             )
         )
 
-        # Use SPOT instances in dev for cost savings
-        if config.api_config.use_fargate_spot:
-            self.cfn_service = self.fargate_service.service.node.default_child
-            self.cfn_service.capacity_provider_strategy = [
-                {
-                    "capacityProvider": "FARGATE_SPOT",
-                    "weight": 1
-                }
-            ]
-            self.cfn_service.launch_type = None
+        self.lambda_integration = integrations.HttpLambdaIntegration(
+            "LambdaIntegration",
+            handler=self.lambda_alias
+        )
 
-        if not config.api_config.public_alb:
-            self.network_bastion = ec2.BastionHostLinux(
-                self, "DevSsmBastion",
-                vpc=vpc,
-                subnet_selection=ec2.SubnetSelection(
-                    subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
-                ),
-                instance_type=ec2.InstanceType.of(
-                    ec2.InstanceClass.T3, ec2.InstanceSize.MICRO
-                )
-            )
-
-            self.fargate_service.load_balancer.connections.allow_from(
-                self.network_bastion,
-                ec2.Port.tcp(80),
-                "Allow SSM Bastion to route local dev traffic to private ALB"
-            )
-
-        live_station_table.grant_read_data(self.fargate_service.task_definition.task_role)
-
-        self.fargate_service.target_group.configure_health_check(
-            path="/actuator/health",
-            port="8080",
-            healthy_http_codes="200",
-            interval=Duration.seconds(30),
-            timeout=Duration.seconds(5)
+        self.http_api.add_routes(
+            path="/{proxy+}",
+            methods=[apigwv2.HttpMethod.GET],
+            integration=self.lambda_integration
         )
 
         if config.api_config.enable_waf:
             secret_token_reference = f"{{{{resolve:secretsmanager:{config.api_config.secret_name}:SecretString}}}}"
 
             self.web_acl = wafv2.CfnWebACL(
-                self, f"WebACL",
+                self, "WebACL",
                 default_action=wafv2.CfnWebACL.DefaultActionProperty(allow={}),
                 scope="REGIONAL",
                 visibility_config=wafv2.CfnWebACL.VisibilityConfigProperty(
@@ -195,9 +178,18 @@ class APIStack(Stack):
                 ]
             )
 
+            # Associate WAF WebACL directly with the API Gateway stage ARN
             wafv2.CfnWebACLAssociation(
                 self, f"WafAssociation",
-                resource_arn=self.fargate_service.load_balancer.load_balancer_arn,
+                resource_arn=self.http_api.default_stage.stage_arn,
                 web_acl_arn=self.web_acl.attr_arn
             )
 
+        # Output the public API Gateway endpoint for your React frontend
+        CfnOutput(
+            self, "ApiEndpointUrl",
+            value=self.http_api.url,
+            description="Secure API Gateway HTTP API Endpoint URL"
+        )
+
+        

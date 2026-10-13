@@ -14,9 +14,6 @@ Toggleable heatmap overlay on map
 
 # TODO Phase 1
 Verify bike count behavior
-Fix location warning
-Properties/Secrets
-REPO CLEANUP/BEST PRACTICES/COMMENTS
 
 # TODO Phase 2
 Heatmap
@@ -25,4 +22,4 @@ Show top 5 destinations on selected station
 Daily average use graph
 Tab icon
 Mobile view
-Prod infra (S, cloudFront, R53)
+Prod infra (secret, cloudFront, R53, domain)
