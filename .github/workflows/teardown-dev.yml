@@ -32,5 +32,5 @@ jobs:
           aws-region: us-east-1
 
       - name: Destroy Dev Stack
-        run: npx aws-cdk destroy -c env=dev --all --force
+        run: npx aws-cdk destroy -c env=dev CitiBike-DataPipeline-dev CitiBike-Network-dev CitiBike-API-dev --force
         working-directory: ./infra
