@@ -1,5 +1,5 @@
 from chispa.dataframe_comparer import assert_df_equality
-from datetime import datetime, timezone
+from datetime import datetime
 from pyspark.sql.types import StructType, StructField, StringType, TimestampType, IntegerType, DoubleType
 
 from src.citibike_etl.transformations.gbfs import (
