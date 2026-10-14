@@ -51,7 +51,7 @@ class TestLambdaHandler:
     @pytest.fixture
     def fixed_now(self):
         """Fixed timestamp: 2026-09-01 12:00:00 UTC (Epoch: 1788264000)."""
-        return datetime(2026, 9, 1, 12, 0, 0, tzinfo=timezone.utc)
+        return datetime(2026, 9, 1, 12, 0, 0, tzinfo=datetime.UTC)
 
     def test_lambda_handler_status_happy_path(self, mocker: MockerFixture, aws_resources, fixed_now):
         """Test happy path execution for station status polling."""

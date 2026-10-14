@@ -67,7 +67,7 @@ def test_transform_gbfs_station_status_bronze_to_silver(spark):
     actual_df = transform_gbfs_station_status_bronze_to_silver(input_df)
     
     expected_data = [
-        ("id123", 9, 5, datetime(2026,9,6,20,54,50,tzinfo=timezone.utc), 7, 2026, 9),
+        ("id123", 9, 5, datetime(2026,9,6,20,54,50,tzinfo=datetime.UTC), 7, 2026, 9),
     ]
     final_schema = StructType([
         StructField("station_id", StringType(), True),
@@ -132,7 +132,7 @@ def test_transform_gbfs_station_info_bronze_to_silver(spark):
     actual_df = transform_gbfs_station_info_bronze_to_silver(input_df)
     
     expected_data = [
-        ("id123", "100.01", "1 St", "71", 40.65, -74.01, 40, datetime(2026,9,6,20,54,50,tzinfo=timezone.utc), 2026, 9)
+        ("id123", "100.01", "1 St", "71", 40.65, -74.01, 40, datetime(2026,9,6,20,54,50,tzinfo=datetime.UTC), 2026, 9)
     ]
     final_schema = StructType([
         StructField("station_id", StringType(), True),
