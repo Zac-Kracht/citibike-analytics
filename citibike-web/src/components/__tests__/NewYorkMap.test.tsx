@@ -23,7 +23,10 @@ vi.mock('react-map-gl/maplibre', () => ({
                         docksAvailable: 10,
                         latitude: 40.748,
                         longitude: -73.985,
-                        isInstalled: true
+                        isInstalled: true,
+                        isRenting: true,
+                        isReturning: true,
+                        capacity: 17
                     }
                 }]
             })}
@@ -78,6 +81,9 @@ describe('NewYorkMap Component - Fixed Position & Geolocate Logic', () => {
                 latitude: 40.748,
                 longitude: -73.985,
                 isInstalled: true,
+                isRenting: true,
+                isReturning: true,
+                capacity: 17
             }
         ];
 

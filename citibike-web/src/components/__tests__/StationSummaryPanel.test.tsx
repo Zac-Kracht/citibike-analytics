@@ -13,6 +13,9 @@ describe('StationSummaryPanel Component', () => {
         latitude: 40.75,
         longitude: -73.99,
         isInstalled: true,
+        isRenting: true,
+        isReturning: true,
+        capacity: 17
     };
 
     it('renders station name and live inventory counts correctly', () => {

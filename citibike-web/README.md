@@ -14,6 +14,7 @@ Toggleable heatmap overlay on map
 
 # TODO Phase 1
 Verify bike count behavior
+Geolocate on selected station
 
 # TODO Phase 2
 Heatmap

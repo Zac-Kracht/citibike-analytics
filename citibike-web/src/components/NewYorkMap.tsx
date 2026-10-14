@@ -142,7 +142,6 @@ export default function NewYorkMap() {
                     <GeolocateControl
                         position="bottom-right"
                         trackUserLocation={true}
-                        showUserHeading={true}
                     />
 
                     <Source id="stations" type="geojson" data={geoJsonData}>

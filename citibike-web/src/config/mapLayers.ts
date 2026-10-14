@@ -1,7 +1,6 @@
-import type { CircleLayer } from 'react-map-gl/maplibre';
+import type { LayerProps } from 'react-map-gl/maplibre';
 
-
-export const stationsLayer: CircleLayer = {
+export const stationsLayer: LayerProps = {
     id: 'stations-layer',
     type: 'circle',
     source: 'stations',

@@ -15,7 +15,7 @@ describe('useStations Hook', () => {
 
     it('initializes with loading state true, empty stations, and null error', () => {
         // Arrange - mock fetch to pending/delayed response so we capture initial mounting state
-        vi.spyOn(global, 'fetch').mockImplementationOnce(() => new Promise(() => {}));
+        vi.stubGlobal('fetch', vi.fn().mockImplementationOnce(() => new Promise(() => {})));
 
         // Act
         const { result } = renderHook(() => useStations());
@@ -38,10 +38,10 @@ describe('useStations Hook', () => {
             { stationId: '3', stationName: 'Not Installed', latitude: 40.8, longitude: -74.0, isInstalled: false, bikesAvailable: 2, ebikesAvailable: 0, docksAvailable: 8 }
         ];
 
-        vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
             ok: true,
             json: async () => mockApiResponse,
-        } as Response);
+        } as Response));
 
         // Act
         const { result } = renderHook(() => useStations());
@@ -66,10 +66,10 @@ describe('useStations Hook', () => {
 
     it('handles API failure and sets the proper error state', async () => {
         // Arrange
-        vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
             ok: false,
             status: 500,
-        } as Response);
+        } as Response));
 
         // Act
         const { result } = renderHook(() => useStations());
