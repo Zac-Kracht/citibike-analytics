@@ -1,7 +1,7 @@
+import datetime
 import io
 import json
 import os
-from datetime import datetime
 
 import boto3
 import pytest
@@ -51,11 +51,11 @@ class TestLambdaHandler:
     @pytest.fixture
     def fixed_now(self):
         """Fixed timestamp: 2026-09-01 12:00:00 UTC (Epoch: 1788264000)."""
-        return datetime(2026, 9, 1, 12, 0, 0, tzinfo=datetime.UTC)
+        return datetime.datetime(2026, 9, 1, 12, 0, 0, tzinfo=datetime.UTC)
 
     def test_lambda_handler_status_happy_path(self, mocker: MockerFixture, aws_resources, fixed_now):
         """Test happy path execution for station status polling."""
-        mocker.patch("src.handler.datetime", mocker.MagicMock(now=mocker.MagicMock(return_value=fixed_now)))
+        mocker.patch("src.handler.datetime.datetime", mocker.MagicMock(now=mocker.MagicMock(return_value=fixed_now)))
 
         mock_gbfs = mocker.patch("src.handler.GBFSClient")
         mock_gbfs_instance = mock_gbfs.return_value
@@ -106,7 +106,7 @@ class TestLambdaHandler:
 
     def test_lambda_handler_info_happy_path(self, mocker: MockerFixture, aws_resources, fixed_now):
         """Test happy path execution for station info polling."""
-        mocker.patch("src.handler.datetime", mocker.MagicMock(now=mocker.MagicMock(return_value=fixed_now)))
+        mocker.patch("src.handler.datetime.datetime", mocker.MagicMock(now=mocker.MagicMock(return_value=fixed_now)))
 
         mock_gbfs = mocker.patch("src.handler.GBFSClient")
         mock_gbfs.return_value.fetch_station_info.return_value = {
@@ -131,9 +131,9 @@ class TestLambdaHandler:
 
     def test_lambda_handler_trips_default_date_calculation(self, mocker: MockerFixture, aws_resources, fixed_now):
         """Test historical trips defaults to previous month processing when no rerun month is passed."""
-        mocker.patch("src.handler.datetime", mocker.MagicMock(
+        mocker.patch("src.handler.datetime.datetime", mocker.MagicMock(
             now=mocker.MagicMock(return_value=fixed_now),
-            strptime=datetime.strptime
+            strptime=datetime.datetime.strptime
         ))
 
         mock_historical_client = mocker.patch("src.handler.CitiBikeHistoricalClient")

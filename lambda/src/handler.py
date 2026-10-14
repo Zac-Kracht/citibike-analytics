@@ -1,6 +1,6 @@
+import datetime
 import json
 import logging
-from datetime import datetime, timedelta
 
 import boto3
 
@@ -36,7 +36,7 @@ def _handle_station_status(config: Config, event: dict):
             "payload_size": station_status_payload_size
         }
 
-    now = datetime.now(datetime.UTC)
+    now = datetime.datetime.now(datetime.UTC)
     epoch_ts = int(now.timestamp())
 
     dynamo_service = DynamoDBService(
@@ -79,7 +79,7 @@ def _handle_station_info(config: Config, event: dict):
             "payload_size": station_info_payload_size
         }
 
-    now = datetime.now(datetime.UTC)
+    now = datetime.datetime.now(datetime.UTC)
     epoch_ts = int(now.timestamp())
 
     dynamo_service = DynamoDBService(
@@ -106,9 +106,9 @@ def _handle_station_info(config: Config, event: dict):
 def _handle_historical_trips(config: Config, event: dict):
     rerun_arg = event.get("rerun_month", None) # Only for trips reruns, format: YYYYMM
     if rerun_arg:
-        month_to_process = datetime.strptime(rerun_arg, "%Y%m").replace(tzinfo=datetime.UTC)
+        month_to_process = datetime.datetime.strptime(rerun_arg, "%Y%m").replace(tzinfo=datetime.UTC)
     else:
-        month_to_process = datetime.now(datetime.UTC).replace(day=1) - timedelta(days=1)
+        month_to_process = datetime.datetime.now(datetime.UTC).replace(day=1) - datetime.timedelta(days=1)
 
     file_key = month_to_process.strftime("%Y%m")
     bronze_s3_prefix = f"bronze/trips/year={month_to_process.year}/month={month_to_process.month}"
