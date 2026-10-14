@@ -1,14 +1,14 @@
-import boto3
-import logging
+import datetime
 import json
+import logging
 
-from datetime import datetime, timezone, timedelta
+import boto3
 
+from src.citibike_historical_client import CitiBikeHistoricalClient
 from src.config import Config
+from src.dynamo_service import DynamoDBService
 from src.gbfs_client import GBFSClient
 from src.s3_service import S3Service
-from src.dynamo_service import DynamoDBService
-from src.citibike_historical_client import CitiBikeHistoricalClient
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -36,7 +36,7 @@ def _handle_station_status(config: Config, event: dict):
             "payload_size": station_status_payload_size
         }
 
-    now = datetime.now(timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     epoch_ts = int(now.timestamp())
 
     dynamo_service = DynamoDBService(
@@ -79,7 +79,7 @@ def _handle_station_info(config: Config, event: dict):
             "payload_size": station_info_payload_size
         }
 
-    now = datetime.now(timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     epoch_ts = int(now.timestamp())
 
     dynamo_service = DynamoDBService(
@@ -106,9 +106,9 @@ def _handle_station_info(config: Config, event: dict):
 def _handle_historical_trips(config: Config, event: dict):
     rerun_arg = event.get("rerun_month", None) # Only for trips reruns, format: YYYYMM
     if rerun_arg:
-        month_to_process = datetime.strptime(rerun_arg, "%Y%m")
+        month_to_process = datetime.datetime.strptime(rerun_arg, "%Y%m").replace(tzinfo=datetime.UTC)
     else:
-        month_to_process = datetime.now().replace(day=1) - timedelta(days=1)
+        month_to_process = datetime.datetime.now(datetime.UTC).replace(day=1) - datetime.timedelta(days=1)
 
     file_key = month_to_process.strftime("%Y%m")
     bronze_s3_prefix = f"bronze/trips/year={month_to_process.year}/month={month_to_process.month}"
@@ -158,7 +158,7 @@ def _handle_historical_trips(config: Config, event: dict):
 
         # Raise error if no locations for a city are successfully extracted
         if not city_complete:
-            raise RuntimeError(f"City {city} not extracted for either zip location: {urls_to_process[city]}")
+            raise RuntimeError(f"City {city} not extracted for either zip location: {urls}")
 
     # Write _SUCCESS file only when both cities process successfully
     s3_service.write_success_file(f"{bronze_s3_prefix}")

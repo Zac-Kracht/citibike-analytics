@@ -31,7 +31,7 @@ public class DynamoDbConfig {
         DynamoDbClientBuilder builder = DynamoDbClient.builder()
                 .region(Region.of(region));
 
-        // If running locally with an endpoint override (http://localhost:8000)
+        // If running locally with an endpoint override (ex. http://localhost:8000)
         if (endpointOverride != null && !endpointOverride.isBlank()) {
             builder.endpointOverride(URI.create(endpointOverride));
         }

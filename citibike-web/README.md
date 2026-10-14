@@ -13,9 +13,8 @@ When a pin is clicked on the map zooms to show the pin + the top 5 destination p
 Toggleable heatmap overlay on map
 
 # TODO Phase 1
-Testing CI/CD Pipeline
-Properties/Secrets
-REPO CLEANUP/BEST PRACTICES/COMMENTS
+Verify bike count behavior
+Geolocate on selected station
 
 # TODO Phase 2
 Heatmap
@@ -24,4 +23,4 @@ Show top 5 destinations on selected station
 Daily average use graph
 Tab icon
 Mobile view
-Prod infra (S, cloudFront, R53)
+Prod infra (secret, cloudFront, R53, domain)

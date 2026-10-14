@@ -4,19 +4,17 @@ import type { MapRef } from 'react-map-gl/maplibre';
 import type { Station, HoverInfo } from '../types';
 import { useStations } from '../hooks/useStations';
 import { stationsLayer } from '../config/mapLayers';
-import { NYC_BOUNDS, MAX_BOUNDS_ARRAY } from '../config/constants';
+import { MAX_BOUNDS_ARRAY } from '../config/constants';
 import StationSummaryPanel from './StationSummaryPanel';
 import DataLoading from './DataLoading';
 import MapErrorBanner from './MapErrorBanner';
 import HoverSummary from './HoverSummary';
-import LocationWarning from './LocationWarning';
 
 
 export default function NewYorkMap() {
     const { stations, geoJsonData, isLoading, error, refetch } = useStations();
     const [selectedStation, setSelectedStation] = useState<Station | null>(null);
     const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
-    const [locationWarning, setLocationWarning] = useState<string | null>(null);
 
     const mapRef = useRef<MapRef>(null);
     const hoveredFeatureId = useRef<string | null>(null);
@@ -109,29 +107,12 @@ export default function NewYorkMap() {
         setHoverInfo(null);
     }, []);
 
-    const handleGeolocate = useCallback((event: any) => {
-        const userLng = event.coords.longitude;
-        const userLat = event.coords.latitude;
-
-        const isOutOfBounds =
-            userLng < NYC_BOUNDS.sw.lng ||
-            userLng > NYC_BOUNDS.ne.lng ||
-            userLat < NYC_BOUNDS.sw.lat ||
-            userLat > NYC_BOUNDS.ne.lat;
-
-        if (isOutOfBounds) {
-            setLocationWarning("You appear to be outside the Citi Bike service area.");
-            setTimeout(() => setLocationWarning(null), 5000);
-        }
-    }, []);
-
     return (
         <div className="w-full h-full relative flex overflow-hidden">
             <div className="flex-1 relative">
                 {isLoading && <DataLoading />}
                 {error && <MapErrorBanner message={error} onRetry={refetch} />}
                 {hoverInfo && <HoverSummary info={hoverInfo} />}
-                {locationWarning && <LocationWarning message={locationWarning} onExitButtonClick={() => setLocationWarning(null)} />}
 
                 <Map
                     ref={mapRef}
@@ -151,14 +132,16 @@ export default function NewYorkMap() {
                     cursor={hoverInfo ? "pointer" : "grab"}
                     minZoom={10}
                     maxBounds={MAX_BOUNDS_ARRAY}
+                    scrollZoom={!selectedStation}
+                    dragPan={!selectedStation}
+                    boxZoom={!selectedStation}
+                    touchZoomRotate={!selectedStation}
                 >
                     <NavigationControl position="bottom-right" showCompass={false} />
 
                     <GeolocateControl
                         position="bottom-right"
                         trackUserLocation={true}
-                        showUserHeading={true}
-                        onGeolocate={handleGeolocate}
                     />
 
                     <Source id="stations" type="geojson" data={geoJsonData}>

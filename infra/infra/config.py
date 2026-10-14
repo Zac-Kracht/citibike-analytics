@@ -50,6 +50,7 @@ class APIConfig:
     secret_header_name: str
     secret_name: str
     dynamo_poll_rate_ms: int
+    allowed_origins: list[str]
 
 @dataclass
 class EnvironmentConfig:
@@ -60,7 +61,6 @@ class EnvironmentConfig:
     lambda_config: LambdaConfig
     glue_config: GlueConfig
     dynamo_config: DynamoConfig
-    fargate_config: FargateConfig
     api_config: APIConfig
     
 
@@ -99,18 +99,14 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
             deletion_protection=False,
             point_in_time_recovery=False
         ),
-        fargate_config=FargateConfig(
-            cpu=256,
-            memory_limit_mib=512,
-            desired_count=1
-        ),
         api_config=APIConfig(
             public_alb=False,
             enable_waf=False,
             use_fargate_spot=True,
             secret_header_name="",
             secret_name="",
-            dynamo_poll_rate_ms=1800000
+            dynamo_poll_rate_ms=1800000,
+            allowed_origins=["http://localhost:5173", "http://localhost:3000"]
         )
     ),
     "prod": EnvironmentConfig(
@@ -173,18 +169,14 @@ ENVIRONMENTS: Dict[str, EnvironmentConfig] = {
             deletion_protection=True,
             point_in_time_recovery=True
         ),
-        fargate_config=FargateConfig(
-            cpu=256,
-            memory_limit_mib=512,
-            desired_count=1
-        ),
         api_config=APIConfig(
             public_alb=True,
             enable_waf=True,
             use_fargate_spot=False,
             secret_header_name="X-Origin-Verify",
             secret_name="citibike/prod/origin-header-secret",
-            dynamo_poll_rate_ms=180000
+            dynamo_poll_rate_ms=180000,
+            allowed_origins=[]
         )
     )
 }

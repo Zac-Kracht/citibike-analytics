@@ -5,7 +5,8 @@ import aws_cdk as cdk
 
 from infra.data_pipeline_stack import DataPipelineStack
 from infra.network_stack import NetworkStack
-from infra.api_stack import APIStack
+from infra.api_stack_v2 import APIStackV2
+from infra.github_oidc_stack import GitHubOIDCStack
 from infra.config import ENVIRONMENTS
 
 
@@ -23,6 +24,14 @@ cdk_env = cdk.Environment(
     region=os.getenv('CDK_DEFAULT_REGION')
 )
 
+# For GitHub workflow
+GitHubOIDCStack(
+    app, 
+    "GitHubOIDCSetup",
+    github_repo="Zac-Kracht/citibike-analytics", 
+    env=cdk_env
+)
+
 data_pipeline = DataPipelineStack(
     app, 
     f"CitiBike-DataPipeline-{config.env_name}",
@@ -35,7 +44,7 @@ network = NetworkStack(
     config,
     env=cdk_env
 )
-api = APIStack(
+api = APIStackV2(
     app,
     f"CitiBike-API-{config.env_name}",
     config,

@@ -98,27 +98,26 @@ docker push <YOUR_ACCOUNT_ID>.dkr.ecr.<YOUR_REGION>.amazonaws.com/citibike-backe
 # Run frontend
 nvm use 22
 nvm alias default 22
-npm install
+npm install (or npm install --legacy-peer-deps)
 npm run dev
 
 # TODO
 disabled docks/bikes (caution icon)
+Legend?
 dynamoV2 migration
 Make sure S3 lifecycle rules minimize cost
 create origin secret in prod
 linter
-unit test
-integration test
 prod stack
-github actions/CICD
 claude file?
 documentations/readme's
 code comments
 alerts about failed jobs
 alarms
 check for cyber threats
-vulnerability management
+vulnerability management/scanning
 makefiles
 multi language support
 front end accessibility
 claude skills
+Buy domain
