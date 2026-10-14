@@ -26,7 +26,10 @@ class GitHubOIDCStack(Stack):
                         "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
                     },
                     "StringLike": {
-                        "token.actions.githubusercontent.com:sub": f"repo:{github_repo}:ref:refs/heads/main"
+                        "token.actions.githubusercontent.com:sub": [
+                            f"repo:{github_repo}:ref:refs/heads/main",
+                            f"repo:{github_repo}:pull_request",
+                        ]
                     }
                 },
                 assume_role_action="sts:AssumeRoleWithWebIdentity"

@@ -28,7 +28,7 @@ cdk_env = cdk.Environment(
 GitHubOIDCStack(
     app, 
     "GitHubOIDCSetup",
-    github_repo="Zac-Kracht/citibike-analytics", 
+    github_repo="Zac-Kracht@40963817/citibike-analytics@1323434083", 
     env=cdk_env
 )
 
