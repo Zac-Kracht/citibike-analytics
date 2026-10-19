@@ -172,6 +172,12 @@ class DataPipelineStack(Stack):
 
         self.s3_bucket.grant_read_write(self.glue_role)
 
+        self.etl_asset = s3_assets.Asset(
+            self, f"ETLAsset",
+            path="../etl/src"
+        )
+        self.etl_asset.grant_read(self.glue_role)
+
         ## Bronze -> Silver
 
         ### GBFS 
@@ -203,7 +209,8 @@ class DataPipelineStack(Stack):
                 "--enable-continuous-cloudwatch-log": "true",
                 "--DATA_LAKE_BUCKET": self.s3_bucket.bucket_name,
                 "--ENV_NAME": config.env_name,
-                "--DATA_TO_PROCESS": "ALL"
+                "--DATA_TO_PROCESS": "ALL",
+                "--extra-py-files": f"s3://{self.etl_asset.s3_bucket_name}/{self.etl_asset.s3_object_key}",
             }
         )
 
@@ -248,7 +255,8 @@ class DataPipelineStack(Stack):
                 "--enable-metrics": "true",
                 "--enable-continuous-cloudwatch-log": "true",
                 "--DATA_LAKE_BUCKET": self.s3_bucket.bucket_name,
-                "--ENV_NAME": config.env_name
+                "--ENV_NAME": config.env_name,
+                "--extra-py-files": f"s3://{self.etl_asset.s3_bucket_name}/{self.etl_asset.s3_object_key}",
             }
         )
 

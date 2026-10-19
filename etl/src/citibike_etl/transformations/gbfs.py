@@ -2,7 +2,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql.functions import explode, col, timestamp_seconds, year, month
 from pyspark.sql.types import StringType, DoubleType, IntegerType
 
-from src.citibike_etl.utils.logging import get_logger
+from citibike_etl.utils.logging import get_logger
 
 logger = get_logger(__name__)
 

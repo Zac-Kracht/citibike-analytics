@@ -5,11 +5,11 @@ from awsglue.context import GlueContext
 from awsglue.job import Job
 from pyspark.context import SparkContext
 
-from src.citibike_etl.transformations.gbfs import (
+from citibike_etl.transformations.gbfs import (
     transform_gbfs_station_info_bronze_to_silver,
     transform_gbfs_station_status_bronze_to_silver
 )
-from src.citibike_etl.utils.logging import get_logger
+from citibike_etl.utils.logging import get_logger
 
 logger = get_logger("gbfs_bronze_to_silver_etl")
 
