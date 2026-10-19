@@ -52,7 +52,7 @@ class APIStackV2(Stack):
             function_name=f"citibike-api-lambda-{config.env_name}",
             runtime=lambda_.Runtime.JAVA_21,
             code=lambda_.Code.from_asset("../api/target/api-0.0.1-SNAPSHOT.jar"), 
-            handler="com.citibike.api.StreamLambdaHandler::handleRequest", 
+            handler="com.citibike.api.StreamLambdaHandler", 
             memory_size=2048, 
             timeout=Duration.seconds(30),
             vpc=vpc,
@@ -70,7 +70,7 @@ class APIStackV2(Stack):
 
         live_station_table.grant_read_data(self.lambda_fn)
 
-        self.lambda_version = lambda_.Version(self, "LambdaVersion", lambda_=self.lambda_fn)
+        self.lambda_version = self.lambda_fn.current_version
         self.lambda_alias = lambda_.Alias(
             self, "LambdaLiveAlias",
             alias_name="live",

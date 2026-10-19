@@ -14,7 +14,7 @@ public class StreamLambdaHandler implements RequestStreamHandler {
     
     static {
         try {
-            handler = SpringBootLambdaContainerHandler.getAwsProxyHandler(CitiBikeApiApplication.class);
+            handler = SpringBootLambdaContainerHandler.getHttpApiV2ProxyHandler(CitiBikeApiApplication.class);
         } catch (ContainerInitializationException e) {
             throw new RuntimeException("Could not initialize Spring Boot application", e);
         }

@@ -5,8 +5,8 @@ from awsglue.context import GlueContext
 from awsglue.job import Job
 from pyspark.context import SparkContext
 
-from src.citibike_etl.transformations.trips import transform_trips_bronze_to_silver
-from src.citibike_etl.utils.logging import get_logger
+from citibike_etl.transformations.trips import transform_trips_bronze_to_silver
+from citibike_etl.utils.logging import get_logger
 
 logger = get_logger("trips_bronze_to_silver_etl")
 
