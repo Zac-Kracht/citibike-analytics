@@ -6,7 +6,7 @@ describe('useStations Hook', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         // Mock environment variable used in useStations
-        import.meta.env.VITE_GET_STATIONS_BASE_URL = 'http://localhost:3000';
+        import.meta.env.VITE_CITIBIKE_API_BASE_URL = 'http://localhost:3000';
     });
 
     afterEach(() => {

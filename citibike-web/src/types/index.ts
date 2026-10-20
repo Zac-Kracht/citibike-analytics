@@ -18,3 +18,18 @@ export type HoverInfo = {
     name: string;
     bikes: number;
 };
+
+export type TopDestination = {
+    rank: number;
+    destinationStationId: string;
+    destinationStationName: string;
+    tripCount: number;
+};
+
+export type TopDestinationsResponse = {
+    stationId: string;
+    windowStart: string;
+    windowEnd: string;
+    generatedAt: string;
+    destinations: TopDestination[];
+};

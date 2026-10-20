@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import type { Station } from '../types/index';
+import { getApiBaseUrl } from '../config/api';
 
 const STATIONS_DATA = [
   // --- Manhattan ---
@@ -98,7 +99,28 @@ function generateMockStations(): Station[] {
 }
 
 export const handlers = [
-  http.get<never, never, Station[]>('http://localhost:8080/api/v1/stations', () => {
+  http.get<never, never, Station[]>(`${getApiBaseUrl()}/api/v1/stations`, () => {
     return HttpResponse.json(generateMockStations());
+  }),
+  http.get(`${getApiBaseUrl()}/api/v1/stations/:stationId/top-destinations`, ({ params }) => {
+    const stationId = String(params.stationId);
+    const stationNumber = Number(stationId.replace('station-', '')) || 1;
+    const destinations = Array.from({ length: 5 }, (_, idx) => {
+      const destination = STATIONS_DATA[(stationNumber + idx) % STATIONS_DATA.length];
+      return {
+        rank: idx + 1,
+        destinationStationId: `station-${(stationNumber + idx) % STATIONS_DATA.length + 1}`,
+        destinationStationName: destination.name,
+        tripCount: 1240 - idx * 173,
+      };
+    });
+
+    return HttpResponse.json({
+      stationId,
+      windowStart: '2026-07-01',
+      windowEnd: '2026-10-01',
+      generatedAt: '2026-10-15T06:12:00Z',
+      destinations,
+    });
   }),
 ];

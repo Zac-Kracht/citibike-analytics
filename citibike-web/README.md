@@ -12,14 +12,18 @@ When a pin is clicked on the map zooms to show the pin + the top 5 destination p
 - stretch: directions appear to each pin
 Toggleable heatmap overlay on map
 
-# TODO Phase 1
-Verify bike count behavior
-Geolocate on selected station
+# API Configuration
+Set `VITE_CITIBIKE_API_BASE_URL` in the web app's environment to the API origin, for example `http://localhost:8080` for local development. Vite embeds this value at build time, so production deployments must provide the production API origin during the frontend build.
+
+# TODO Top 5 Destinations Panel
+- Database (Dynamo)
+- Silver to Gold Glue job
+- New API endpoint
+- Frontend Integration
+
 
 # TODO Phase 2
 Heatmap
-Top 5 destinations panel
-Show top 5 destinations on selected station
 Daily average use graph
 Tab icon
 Mobile view

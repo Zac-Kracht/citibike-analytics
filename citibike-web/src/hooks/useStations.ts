@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { FeatureCollection } from 'geojson';
 import type { Station } from '../types';
+import { getApiBaseUrl } from '../config/api';
 
 
 export function useStations() {
@@ -13,8 +14,7 @@ export function useStations() {
         setError(null);
 
         try {
-            const baseUrl = import.meta.env.VITE_GET_STATIONS_BASE_URL;
-            const response = await fetch(`${baseUrl}/api/v1/stations`);
+            const response = await fetch(`${getApiBaseUrl()}/api/v1/stations`);
 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();

@@ -103,13 +103,12 @@ npm run dev
 
 # TODO
 disabled docks/bikes (caution icon)
-Legend?
+Legend (colors)
 dynamoV2 migration
 Make sure S3 lifecycle rules minimize cost
 create origin secret in prod
-linter
 prod stack
-claude file?
+claude/codex file/skills?
 documentations/readme's
 code comments
 alerts about failed jobs
